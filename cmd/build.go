@@ -22,36 +22,31 @@ THE SOFTWARE.
 package cmd
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 )
 
 // buildCmd represents the build command
 var buildCmd = &cobra.Command{
 	Use:   "build",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Short: "Build the source code and return",
+	Long: `Use build to do a once-off build of your source code.
+By default, only files that do not exist will be build.
+Use the force flag (-f) to force rebuilding of all files.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("build called")
+		// p := project.Load(cmd.Flags().GetString("metafile"))
+		// rm := refmap.Start(cmd.Flags().GetString("metafolder"))
+		// p.Process(project.BranchBuilder, rm)
+		// ctx := context.WithValue(context.Background(), "source", cmd.Flags().GetString("metafolder"))
+		// ctx = context.WithValue(ctx, "destination", cmd.Flags().GetString("destination"))
+		// ctx = context.WithValue(ctx, "force", cmd.Flags().GetBool("force"))
+		// meta.Build(ctx, rm)
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(buildCmd)
 
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// buildCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// buildCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	buildCmd.PersistentFlags().String("metafile", "meta.yml", "The meta file")
+	buildCmd.PersistentFlags().String("metafolder", "meta", "The meta folder")
+	buildCmd.Flags().BoolP("force", "f", false, "Force rebuilding of existing files")
 }
