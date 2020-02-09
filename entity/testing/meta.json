@@ -1,0 +1,10 @@
+{
+    "name": "Demo",
+    "directories": {
+        "a":{
+            "files": {
+                "a.ext": {}
+            }
+        }
+    }
+}

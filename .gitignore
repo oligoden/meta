@@ -1,1 +1,5 @@
+bin/*
 
+entity/testing/*
+!entity/testing/meta
+!entity/testing/meta.json
