@@ -1,3 +1,5 @@
+![](https://github.com/oligoden/meta/workflows/GoBuild/badge.svg)
+
 # Meta (Library an Base Tool)
 Build applications by copying, parsing and bundling files from a meta-source directory as described by a configuration data file.
 
