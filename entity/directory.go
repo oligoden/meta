@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/oligoden/meta/mapping"
+	"github.com/oligoden/meta/refmap"
 )
 
 type Directory struct {
@@ -29,7 +29,7 @@ func (d *Directory) calculateHash() error {
 	return nil
 }
 
-func (d *Directory) Process(bb func(BranchSetter) (UpStepper, error), m mapping.Mutator) error {
+func (d *Directory) Process(bb func(BranchSetter) (UpStepper, error), m refmap.Mutator) error {
 	err := d.calculateHash()
 	if err != nil {
 		return err

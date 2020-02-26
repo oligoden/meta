@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/oligoden/meta/mapping"
+	"github.com/oligoden/meta/refmap"
 )
 
 type Detection struct {
@@ -32,13 +32,13 @@ func (cd *Detection) HashOf(m interface{}) error {
 	hash := fmt.Sprintf("%x", h.Sum(nil))
 	if hash != cd.hash {
 		if cd.hash == "" {
-			cd.change = mapping.DataAdded
+			cd.change = refmap.DataAdded
 		} else {
-			cd.change = mapping.DataUpdated
+			cd.change = refmap.DataUpdated
 		}
 		cd.hash = hash
 	} else {
-		cd.change = mapping.DataChecked
+		cd.change = refmap.DataChecked
 	}
 
 	return nil

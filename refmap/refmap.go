@@ -1,7 +1,9 @@
-package mapping
+package refmap
 
 import (
 	"context"
+
+	graph "github.com/oligoden/math-graph"
 )
 
 const (
@@ -14,49 +16,64 @@ const (
 
 type Store struct {
 	reads  chan *readOp
+	adds   chan *addOp
+	Maps   chan *mapOp
 	writes chan *writeOp
 	Sets   chan *SetOp
 	// sync    chan *SyncOp
 	Changed chan *changedOp
 	// Removed chan *RemovedOp
 	// Exec    chan *ExecOp
-	core *core
+	core  *core
+	refs  map[string]Actioner
+	maps  map[string]map[string]uint
+	graph *graph.Graph
 }
 
 func Start(location string) *Store {
-	m := &Store{}
-	m.reads = make(chan *readOp)
-	m.writes = make(chan *writeOp)
-	m.Sets = make(chan *SetOp)
-	// 	// m.sync = make(chan *SyncOp)
-	m.Changed = make(chan *changedOp)
-	// 	// m.Removed = make(chan *RemovedOp)
-	// 	// m.Exec = make(chan *ExecOp)
+	s := &Store{}
+	s.reads = make(chan *readOp)
+	s.adds = make(chan *addOp)
+	s.Maps = make(chan *mapOp)
+	s.writes = make(chan *writeOp)
+	s.Sets = make(chan *SetOp)
+	// 	// s.sync = make(chan *SyncOp)
+	s.Changed = make(chan *changedOp)
+	// 	// s.Removed = make(chan *RemovedOp)
+	// 	// s.Exec = make(chan *ExecOp)
 
-	m.core = newCore(location)
+	s.core = newCore(location)
+	s.refs = make(map[string]Actioner)
+	s.maps = make(map[string]map[string]uint)
+	s.graph = graph.New()
 
 	go func() {
 		for {
 			select {
-			case read := <-m.reads:
-				read.Rsp <- m.core.refs[read.Src]
-			case write := <-m.writes:
-				write.handle(m.core.root, m.core.refs)
-			case setter := <-m.Sets:
-				setter.handle(&m.core.root, m.core.refs)
-			// case sync := <-m.sync:
-			// 	sync.handle(m.core.refs)
-			case changed := <-m.Changed:
-				changed.handle(m.core.refs)
-				// case removed := <-m.Removed:
-				// 	removed.handle(m.core.refs)
-				// case exec := <-m.Exec:
-				// 	exec.handle(m.core.execs)
+			case a := <-s.reads:
+				a.Rsp <- s.core.refs[a.Src]
+			case a := <-s.writes:
+				a.handle(s.core.root, s.core.refs)
+			case a := <-s.adds:
+				a.handle(s.refs, s.graph)
+			case a := <-s.Maps:
+				s.graph.Link(a.start, a.end)
+				a.rsp <- nil
+			case a := <-s.Sets:
+				a.handle(s.core.refs, s.refs, s.graph)
+			// case sync := <-s.sync:
+			// 	sync.handle(s.core.refs)
+			case changed := <-s.Changed:
+				changed.handle(s.core.refs)
+				// case removed := <-s.Removed:
+				// 	removed.handle(s.core.refs)
+				// case exec := <-s.Exec:
+				// 	exec.handle(s.core.execs)
 			}
 		}
 	}()
 
-	return m
+	return s
 }
 
 type core struct {

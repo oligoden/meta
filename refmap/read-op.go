@@ -1,4 +1,4 @@
-package mapping
+package refmap
 
 import "fmt"
 

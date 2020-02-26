@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"io"
 
-	"github.com/oligoden/meta/mapping"
+	"github.com/oligoden/meta/refmap"
 
 	"github.com/oligoden/meta/entity"
 )
@@ -25,7 +25,7 @@ func Load(f io.Reader) (*Project, error) {
 	return p, nil
 }
 
-func (p *Project) Process(bb func(entity.BranchSetter) (entity.UpStepper, error), m mapping.Mutator) error {
+func (p *Project) Process(bb func(entity.BranchSetter) (entity.UpStepper, error), m refmap.Mutator) error {
 	err := p.calculateHash()
 	if err != nil {
 		return err
@@ -55,7 +55,7 @@ func (p *Project) calculateHash() error {
 	return nil
 }
 
-func Build(ctx context.Context, m *mapping.Store) {
+func Build(ctx context.Context, m *refmap.Store) {
 	for _, ref := range m.ChangedRefs() {
 		for _, val := range ref.Files {
 			val.Perform(ctx)

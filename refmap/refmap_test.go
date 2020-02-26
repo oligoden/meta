@@ -1,15 +1,15 @@
-package mapping_test
+package refmap_test
 
 import (
 	"context"
 	"fmt"
 	"testing"
 
-	"github.com/oligoden/meta/mapping"
+	"github.com/oligoden/meta/refmap"
 )
 
 func TestReadEmptyOnly(t *testing.T) {
-	rm := mapping.Start("a")
+	rm := refmap.Start("a")
 	rsp := rm.Read("")
 	if rsp != nil {
 		fmt.Println("expected a nil response, got", rsp)
@@ -18,28 +18,28 @@ func TestReadEmptyOnly(t *testing.T) {
 
 func TestAddNewRef(t *testing.T) {
 	tf1 := &testFile{
-		status: mapping.DataStable,
+		status: refmap.DataStable,
 		hash:   "a1",
 	}
 
-	rm := mapping.Start("a")
+	rm := refmap.Start("a")
 	rm.Write("b", "c", tf1)
 
 	exp := "DataAdded"
-	got := mapping.StatusText[tf1.Change()]
+	got := refmap.StatusText[tf1.Change()]
 	if got != exp {
 		t.Errorf(`expected "%s", got "%s"`, exp, got)
 	}
 
 	rsp := rm.Read("b")
-	got = mapping.StatusText[rsp.Change]
+	got = refmap.StatusText[rsp.Change]
 	if got != exp {
 		t.Errorf(`expected "%s", got "%s"`, exp, got)
 	}
 	if _, ok := rsp.Files["c"]; !ok {
 		t.Fatal("destination not found")
 	}
-	got = mapping.StatusText[rsp.Files["c"].Change()]
+	got = refmap.StatusText[rsp.Files["c"].Change()]
 	if got != exp {
 		t.Errorf(`expected "%s", got "%s"`, exp, got)
 	}
@@ -57,28 +57,28 @@ func TestAddNewRef(t *testing.T) {
 		t.Errorf(`expected "%s", got "%s"`, exp, got)
 	}
 
-	// adding mapping over added mapping
+	// adding refmap over added refmap
 	tf2 := &testFile{
-		status: mapping.DataStable,
+		status: refmap.DataStable,
 		hash:   "a2",
 	}
 	rm.Write("b", "c", tf2)
 
 	exp = "DataAdded"
-	got = mapping.StatusText[tf2.Change()]
+	got = refmap.StatusText[tf2.Change()]
 	if got != exp {
 		t.Errorf(`expected "%s", got "%s"`, exp, got)
 	}
 
-	// adding mapping to existing source
+	// adding refmap to existing source
 	tf3 := &testFile{
-		status: mapping.DataStable,
+		status: refmap.DataStable,
 		hash:   "a3",
 	}
 	rm.Write("b", "d", tf3)
 
 	exp = "DataAdded"
-	got = mapping.StatusText[tf3.Change()]
+	got = refmap.StatusText[tf3.Change()]
 	if got != exp {
 		t.Errorf(`expected "%s", got "%s"`, exp, got)
 	}
@@ -87,7 +87,7 @@ func TestAddNewRef(t *testing.T) {
 	if _, ok := rsp.Files["d"]; !ok {
 		t.Fatal("destination not found")
 	}
-	got = mapping.StatusText[rsp.Files["d"].Change()]
+	got = refmap.StatusText[rsp.Files["d"].Change()]
 	if got != exp {
 		t.Errorf(`expected "%s", got "%s"`, exp, got)
 	}
@@ -109,14 +109,14 @@ func TestAddNewRef(t *testing.T) {
 	// rm.Finish()
 
 	// exp = "DataStable"
-	// got = mapping.StatusText[tf2.Change()]
+	// got = refmap.StatusText[tf2.Change()]
 	// if got != exp {
 	// 	t.Errorf(`expected "%s", got "%s"`, exp, got)
 	// }
 
 	// rsp = rm.Read("a/b")
 	// exp = "DataStable"
-	// got = mapping.StatusText[rsp.Change]
+	// got = refmap.StatusText[rsp.Change]
 	// if got != exp {
 	// 	t.Errorf(`expected "%s", got "%s"`, exp, got)
 	// }
@@ -125,14 +125,14 @@ func TestAddNewRef(t *testing.T) {
 	// rm.Write("b", "c", tf2)
 
 	// exp = "DataChecked"
-	// got = mapping.StatusText[tf2.Change()]
+	// got = refmap.StatusText[tf2.Change()]
 	// if got != exp {
 	// 	t.Errorf(`expected "%s", got "%s"`, exp, got)
 	// }
 
 	// rsp = rm.Read("a/b")
 	// exp = "DataChecked"
-	// got = mapping.StatusText[rsp.Change]
+	// got = refmap.StatusText[rsp.Change]
 	// if got != exp {
 	// 	t.Errorf(`expected "%s", got "%s"`, exp, got)
 	// }
@@ -140,20 +140,20 @@ func TestAddNewRef(t *testing.T) {
 	// // set status back to stable, update file and write
 	// rm.Finish()
 	// tf2 = &testFile{
-	// 	status: mapping.DataStable,
+	// 	status: refmap.DataStable,
 	// 	hash:   "a3",
 	// }
 	// rm.Write("b", "c", tf2)
 
 	// exp = "DataUpdated"
-	// got = mapping.StatusText[tf2.Change()]
+	// got = refmap.StatusText[tf2.Change()]
 	// if got != exp {
 	// 	t.Errorf(`expected "%s", got "%s"`, exp, got)
 	// }
 
 	// rsp = rm.Read("a/b")
 	// exp = "DataChecked"
-	// got = mapping.StatusText[rsp.Change]
+	// got = refmap.StatusText[rsp.Change]
 	// if got != exp {
 	// 	t.Errorf(`expected "%s", got "%s"`, exp, got)
 	// }

@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/oligoden/meta/entity"
-	"github.com/oligoden/meta/mapping"
+	"github.com/oligoden/meta/refmap"
 )
 
 func TestHash(t *testing.T) {
@@ -20,7 +20,7 @@ func TestHash(t *testing.T) {
 		t.Errorf(`expected hash, got empty sting`)
 	}
 
-	exp := fmt.Sprintf("%d", mapping.DataAdded)
+	exp := fmt.Sprintf("%d", refmap.DataAdded)
 	got := fmt.Sprintf("%d", d.Change())
 	if got != exp {
 		t.Errorf(`expected "%s", got "%s"`, exp, got)
@@ -31,7 +31,7 @@ func TestHash(t *testing.T) {
 		t.Error(err)
 	}
 
-	exp = status[mapping.DataChecked]
+	exp = status[refmap.DataChecked]
 	got = status[d.Change()]
 	if got != exp {
 		t.Errorf(`expected "%s", got "%s"`, exp, got)
@@ -42,7 +42,7 @@ func TestHash(t *testing.T) {
 		t.Error(err)
 	}
 
-	exp = status[mapping.DataUpdated]
+	exp = status[refmap.DataUpdated]
 	got = status[d.Change()]
 	if got != exp {
 		t.Errorf(`expected "%s", got "%s"`, exp, got)
@@ -50,9 +50,9 @@ func TestHash(t *testing.T) {
 }
 
 var status = map[uint8]string{
-	mapping.DataStable:  "DataStable",
-	mapping.DataChecked: "DataChecked",
-	mapping.DataUpdated: "DataUpdated",
-	mapping.DataAdded:   "DataAdded",
-	mapping.DataRemove:  "DataRemove",
+	refmap.DataStable:  "DataStable",
+	refmap.DataChecked: "DataChecked",
+	refmap.DataUpdated: "DataUpdated",
+	refmap.DataAdded:   "DataAdded",
+	refmap.DataRemove:  "DataRemove",
 }

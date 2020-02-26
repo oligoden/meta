@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/oligoden/meta/entity"
-	"github.com/oligoden/meta/mapping"
+	"github.com/oligoden/meta/refmap"
 )
 
 func TestFileProcessing(t *testing.T) {
@@ -98,14 +98,14 @@ func TestFileProcessing(t *testing.T) {
 
 type refMapStub map[string]struct {
 	destination string
-	file        mapping.Actioner
+	file        refmap.Actioner
 }
 
-func (rm refMapStub) Write(s, d string, f mapping.Actioner) {
+func (rm refMapStub) Write(s, d string, f refmap.Actioner) {
 	fmt.Println("write", s, d)
 	rm[s] = struct {
 		destination string
-		file        mapping.Actioner
+		file        refmap.Actioner
 	}{
 		destination: d,
 	}
@@ -174,7 +174,7 @@ func TestFilePerforming(t *testing.T) {
 			dir.DestinationPath = "a"
 			dir.SourcePath = "a"
 			dir.Name = "a"
-			rm := mapping.Start(testPath)
+			rm := refmap.Start(testPath)
 			dir.Process(entity.BuildBranch, rm)
 			file, ok := dir.Directories["aa"].Files[tC.file]
 			if !ok {
@@ -246,7 +246,7 @@ func Test(t *testing.T) {
 			dir.DestinationPath = "a"
 			dir.SourcePath = "a"
 			dir.Name = "a"
-			rm := mapping.Start("testing/meta")
+			rm := refmap.Start("testing/meta")
 			dir.Process(entity.BuildBranch, rm)
 			file := dir.Files["aa.ext"]
 

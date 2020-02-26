@@ -27,7 +27,7 @@ import (
 	"os"
 
 	"github.com/oligoden/meta/entity"
-	"github.com/oligoden/meta/mapping"
+	"github.com/oligoden/meta/refmap"
 	"github.com/oligoden/meta/project"
 
 	"github.com/spf13/cobra"
@@ -69,7 +69,7 @@ Use the force flag (-f) to force rebuilding of all files.`,
 			return
 		}
 
-		rm := mapping.Start(metaFolderName)
+		rm := refmap.Start(metaFolderName)
 		err = p.Process(project.BuildBranch, rm)
 		if err != nil {
 			fmt.Println("error proccessing project", err)
