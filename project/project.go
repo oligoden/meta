@@ -1,7 +1,6 @@
 package project
 
 import (
-	"context"
 	"encoding/json"
 	"io"
 
@@ -31,9 +30,12 @@ func (p *Project) Process(bb func(entity.BranchSetter) (entity.UpStepper, error)
 		return err
 	}
 
+	m.AddRef("project", p)
+
 	for name, dir := range p.Directories {
 		dir.Name = name
 		dir.Parent = p
+		dir.ParentID = "project"
 		dir.SourcePath = name
 		dir.DestinationPath = name
 		err := dir.Process(bb, m)
@@ -53,12 +55,4 @@ func (p *Project) calculateHash() error {
 		return err
 	}
 	return nil
-}
-
-func Build(ctx context.Context, m *refmap.Store) {
-	for _, ref := range m.ChangedRefs() {
-		for _, val := range ref.Files {
-			val.Perform(ctx)
-		}
-	}
 }

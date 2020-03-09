@@ -1,0 +1,13 @@
+{
+    "name": "Example",
+    "directories": {
+        "a":{
+            "files": {
+                "aa.ext": {}
+            }
+        }
+    },
+    "actions": {
+        
+    }
+}

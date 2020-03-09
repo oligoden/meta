@@ -1,6 +1,7 @@
 package entity
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -38,8 +39,12 @@ func (d *Directory) Process(bb func(BranchSetter) (UpStepper, error), m refmap.M
 	d.SourcePath = path(d.SourcePath, d.Source)
 	d.DestinationPath = path(d.DestinationPath, d.Destination)
 
+	m.AddRef("dir:"+d.DestinationPath, d)
+	m.MapRef(d.ParentID, "dir:"+d.DestinationPath)
+
 	for name, dir := range d.Directories {
 		dir.Parent = d
+		dir.ParentID = "dir:" + d.DestinationPath
 		dir.SourcePath = filepath.Join(d.SourcePath, name)
 		dir.DestinationPath = filepath.Join(d.DestinationPath, name)
 		dir.Name = name
@@ -49,6 +54,7 @@ func (d *Directory) Process(bb func(BranchSetter) (UpStepper, error), m refmap.M
 	for name, file := range d.Files {
 		file.Name = name
 		file.Parent = d
+		file.ParentID = "dir:" + d.DestinationPath
 
 		err := file.calculateHash()
 		if err != nil {
@@ -57,19 +63,19 @@ func (d *Directory) Process(bb func(BranchSetter) (UpStepper, error), m refmap.M
 
 		_, err = bb(file)
 		if err != nil {
+			fmt.Println("error", err)
 			return err
 		}
 
-		filename := name
-		// 	if file.Source != "" {
-		// 		filename = file.Source
-		// 	}
-
-		if m != nil {
-			source := filepath.Join(d.SourcePath, filename)
-			destination := filepath.Join(d.DestinationPath, name)
-			m.Write(source, destination, file)
+		if file.Source == "" {
+			file.Source = filepath.Join(d.SourcePath, name)
+		} else if strings.HasPrefix(file.Source, ".") {
+			file.Source = filepath.Join(d.SourcePath, file.Source)
 		}
+
+		destination := filepath.Join(d.DestinationPath, name)
+		m.AddRef("file:"+destination, file)
+		m.MapRef(file.ParentID, "file:"+destination)
 	}
 	return nil
 }

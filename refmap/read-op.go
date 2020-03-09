@@ -1,49 +1,34 @@
 package refmap
 
-import "fmt"
-
-type readOp struct {
-	Src string
-	Opp string
-	Rsp chan *DestRef
-}
-
-func (r Store) Read(src string) *DestRef {
-	read := &readOp{
-		Src: src,
-		Rsp: make(chan *DestRef),
-	}
-	r.reads <- read
-	return <-read.Rsp
-}
+import (
+	graph "github.com/oligoden/math-graph"
+	"github.com/oligoden/meta/entity/state"
+)
 
 type changedOp struct {
-	Refs chan *DestRef
+	Refs chan Actioner
 }
 
-func (o changedOp) handle(refs map[string]*DestRef) {
-	for src, ref := range refs {
-		if ref.Change == DataUpdated || ref.Change == DataAdded {
-			fmt.Println("detected changed file", src)
-			o.Refs <- ref
+func (o changedOp) handle(refs map[string]Actioner, g *graph.Graph) {
+	g.CompileRun(func(ref string) error {
+		if refs[ref].State() == state.Updated || refs[ref].State() == state.Added {
+			o.Refs <- refs[ref]
 		}
-	}
+		return nil
+	})
 	close(o.Refs)
 }
 
 // ChangedRefs returns a slice of DestRefs that has changed.
-func (r Store) ChangedRefs() []*DestRef {
-	refs := []*DestRef{}
-	for ref := range r.changedRefsChan() {
+func (r Store) ChangedRefs() []Actioner {
+	refs := []Actioner{}
+	changed := &changedOp{
+		Refs: make(chan Actioner),
+	}
+	r.Changed <- changed
+
+	for ref := range changed.Refs {
 		refs = append(refs, ref)
 	}
 	return refs
-}
-
-func (r Store) changedRefsChan() chan *DestRef {
-	changed := &changedOp{
-		Refs: make(chan *DestRef),
-	}
-	r.Changed <- changed
-	return changed.Refs
 }

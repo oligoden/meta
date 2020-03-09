@@ -2,183 +2,109 @@ package refmap_test
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
+	"github.com/oligoden/meta/entity/state"
 	"github.com/oligoden/meta/refmap"
 )
 
-func TestReadEmptyOnly(t *testing.T) {
-	rm := refmap.Start("a")
-	rsp := rm.Read("")
-	if rsp != nil {
-		fmt.Println("expected a nil response, got", rsp)
+func TestNormalAdding(t *testing.T) {
+	rm := refmap.Start()
+	t1 := &testRef{}
+	rm.AddRef("a", t1)
+	t2 := &testRef{}
+	rm.AddRef("b", t2)
+	t3 := &testRef{}
+	rm.AddRef("c", t3)
+	rm.MapRef("a", "b")
+	rm.Evaluate()
+	rm.Finish()
+
+	exp := refmap.StatusText[state.Stable]
+	got := refmap.StatusText[t1.State()]
+	if got != exp {
+		t.Errorf(`expected "%s", got "%s"`, exp, got)
+	}
+	exp = refmap.StatusText[state.Stable]
+	got = refmap.StatusText[t2.State()]
+	if got != exp {
+		t.Errorf(`expected "%s", got "%s"`, exp, got)
+	}
+
+	rm.SetUpdate("a")
+	exp = refmap.StatusText[state.Updated]
+	got = refmap.StatusText[t1.State()]
+	if got != exp {
+		t.Errorf(`expected "%s", got "%s"`, exp, got)
+	}
+
+	rm.Propagate()
+	exp = refmap.StatusText[state.Updated]
+	got = refmap.StatusText[t2.State()]
+	if got != exp {
+		t.Errorf(`expected "%s", got "%s"`, exp, got)
 	}
 }
 
-func TestAddNewRef(t *testing.T) {
-	tf1 := &testFile{
-		status: refmap.DataStable,
-		hash:   "a1",
-	}
+func TestAddingRefOverExistingRef(t *testing.T) {
+	rm := refmap.Start()
+	t1 := &testRef{}
+	rm.AddRef("a", t1)
+	t2 := &testRef{}
+	rm.AddRef("a", t2)
+	rm.Finish()
 
-	rm := refmap.Start("a")
-	rm.Write("b", "c", tf1)
-
-	exp := "DataAdded"
-	got := refmap.StatusText[tf1.Change()]
+	exp := refmap.StatusText[state.Added]
+	got := refmap.StatusText[t1.State()]
 	if got != exp {
 		t.Errorf(`expected "%s", got "%s"`, exp, got)
 	}
-
-	rsp := rm.Read("b")
-	got = refmap.StatusText[rsp.Change]
+	exp = refmap.StatusText[state.Stable]
+	got = refmap.StatusText[t2.State()]
 	if got != exp {
 		t.Errorf(`expected "%s", got "%s"`, exp, got)
 	}
-	if _, ok := rsp.Files["c"]; !ok {
-		t.Fatal("destination not found")
-	}
-	got = refmap.StatusText[rsp.Files["c"].Change()]
-	if got != exp {
-		t.Errorf(`expected "%s", got "%s"`, exp, got)
-	}
-
-	rspCR := rm.ChangedRefs()
-	if len(rspCR) != 1 {
-		t.Error("expected changed references")
-	}
-	if _, ok := rspCR[0].Files["c"]; !ok {
-		t.Fatal("destination not found")
-	}
-	exp = "a1"
-	got = rspCR[0].Files["c"].Hash()
-	if got != exp {
-		t.Errorf(`expected "%s", got "%s"`, exp, got)
-	}
-
-	// adding refmap over added refmap
-	tf2 := &testFile{
-		status: refmap.DataStable,
-		hash:   "a2",
-	}
-	rm.Write("b", "c", tf2)
-
-	exp = "DataAdded"
-	got = refmap.StatusText[tf2.Change()]
-	if got != exp {
-		t.Errorf(`expected "%s", got "%s"`, exp, got)
-	}
-
-	// adding refmap to existing source
-	tf3 := &testFile{
-		status: refmap.DataStable,
-		hash:   "a3",
-	}
-	rm.Write("b", "d", tf3)
-
-	exp = "DataAdded"
-	got = refmap.StatusText[tf3.Change()]
-	if got != exp {
-		t.Errorf(`expected "%s", got "%s"`, exp, got)
-	}
-
-	rsp = rm.Read("b")
-	if _, ok := rsp.Files["d"]; !ok {
-		t.Fatal("destination not found")
-	}
-	got = refmap.StatusText[rsp.Files["d"].Change()]
-	if got != exp {
-		t.Errorf(`expected "%s", got "%s"`, exp, got)
-	}
-
-	rspCR = rm.ChangedRefs()
-	if len(rspCR) != 1 {
-		t.Error("expected changed references")
-	}
-	if _, ok := rspCR[0].Files["d"]; !ok {
-		t.Fatal("destination not found")
-	}
-	exp = "a3"
-	got = rspCR[0].Files["d"].Hash()
-	if got != exp {
-		t.Errorf(`expected "%s", got "%s"`, exp, got)
-	}
-
-	// // set status back to stable
-	// rm.Finish()
-
-	// exp = "DataStable"
-	// got = refmap.StatusText[tf2.Change()]
-	// if got != exp {
-	// 	t.Errorf(`expected "%s", got "%s"`, exp, got)
-	// }
-
-	// rsp = rm.Read("a/b")
-	// exp = "DataStable"
-	// got = refmap.StatusText[rsp.Change]
-	// if got != exp {
-	// 	t.Errorf(`expected "%s", got "%s"`, exp, got)
-	// }
-
-	// // write the same file as already added
-	// rm.Write("b", "c", tf2)
-
-	// exp = "DataChecked"
-	// got = refmap.StatusText[tf2.Change()]
-	// if got != exp {
-	// 	t.Errorf(`expected "%s", got "%s"`, exp, got)
-	// }
-
-	// rsp = rm.Read("a/b")
-	// exp = "DataChecked"
-	// got = refmap.StatusText[rsp.Change]
-	// if got != exp {
-	// 	t.Errorf(`expected "%s", got "%s"`, exp, got)
-	// }
-
-	// // set status back to stable, update file and write
-	// rm.Finish()
-	// tf2 = &testFile{
-	// 	status: refmap.DataStable,
-	// 	hash:   "a3",
-	// }
-	// rm.Write("b", "c", tf2)
-
-	// exp = "DataUpdated"
-	// got = refmap.StatusText[tf2.Change()]
-	// if got != exp {
-	// 	t.Errorf(`expected "%s", got "%s"`, exp, got)
-	// }
-
-	// rsp = rm.Read("a/b")
-	// exp = "DataChecked"
-	// got = refmap.StatusText[rsp.Change]
-	// if got != exp {
-	// 	t.Errorf(`expected "%s", got "%s"`, exp, got)
-	// }
-
-	// rspCR = rm.ChangedRefs()
-	// if len(rspCR) != 1 {
-	// 	t.Errorf("expected changed references, got %d", len(rspCR))
-	// }
-	// exp = "a1"
-	// got = rspCR[0].Files["c"].Hash()
-	// if got != exp {
-	// 	t.Errorf(`expected "%s", got "%s"`, exp, got)
-	// }
 }
 
-type testFile struct {
+func TestAddingSameRef(t *testing.T) {
+	rm := refmap.Start()
+	t1 := &testRef{hash: "abc"}
+	rm.AddRef("a", t1)
+	rm.Finish()
+
+	rm.AddRef("a", t1)
+	exp := refmap.StatusText[state.Checked]
+	got := refmap.StatusText[t1.State()]
+	if got != exp {
+		t.Errorf(`expected "%s", got "%s"`, exp, got)
+	}
+}
+
+func TestAddingUpdatedRef(t *testing.T) {
+	rm := refmap.Start()
+	t1 := &testRef{hash: "abc"}
+	rm.AddRef("a", t1)
+	rm.Finish()
+
+	t2 := &testRef{hash: "def"}
+	rm.AddRef("a", t2)
+	exp := refmap.StatusText[state.Updated]
+	got := refmap.StatusText[t2.State()]
+	if got != exp {
+		t.Errorf(`expected "%s", got "%s"`, exp, got)
+	}
+}
+
+type testRef struct {
 	status uint8
 	hash   string
 }
 
-func (tf testFile) Perform(c context.Context) error {
+func (testRef) Perform(c context.Context) error {
 	return nil
 }
 
-func (tf *testFile) Change(s ...uint8) uint8 {
+func (tf *testRef) State(s ...uint8) uint8 {
 	if len(s) > 0 {
 		tf.status = s[0]
 	}
@@ -186,6 +112,6 @@ func (tf *testFile) Change(s ...uint8) uint8 {
 	return tf.status
 }
 
-func (tf testFile) Hash() string {
+func (tf testRef) Hash() string {
 	return tf.hash
 }

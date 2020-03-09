@@ -1,11 +1,13 @@
 package entity
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 	"strings"
 
 	"github.com/jinzhu/inflection"
+	"github.com/oligoden/meta/entity/state"
 )
 
 type ContextKey string
@@ -13,8 +15,13 @@ type ContextKey string
 type Basic struct {
 	Name        string                `json:"name"`
 	Directories map[string]*Directory `json:"directories"`
+	ParentID    string                `json:"-"`
 	Parent      UpStepper             `json:"-"`
-	Detection
+	state.Detect
+}
+
+func (*Basic) Perform(context.Context) error {
+	return nil
 }
 
 type UpStepper interface {

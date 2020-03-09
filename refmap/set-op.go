@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	graph "github.com/oligoden/math-graph"
+	"github.com/oligoden/meta/entity/state"
 )
 
 type SetOp struct {
@@ -12,7 +13,7 @@ type SetOp struct {
 	Err chan error
 }
 
-func (o SetOp) handle(refs map[string]*DestRef, refs2 map[string]Actioner, g *graph.Graph) {
+func (o SetOp) handle(refs map[string]Actioner, g *graph.Graph) {
 	// if o.Key == "location" {
 	// 	*location = o.Val
 	// 	o.Err <- nil
@@ -25,26 +26,25 @@ func (o SetOp) handle(refs map[string]*DestRef, refs2 map[string]Actioner, g *gr
 	// }
 	switch o.Key {
 	case "propagate":
-		propagate(refs2, g)
+		propagate(refs, g)
 		o.Err <- nil
 	case "evaluate":
 		g.Evaluate()
-		fmt.Printf("%+v", g)
 		o.Err <- nil
 	case "finish":
+		// finish(refs)
 		finish(refs)
-		finish2(refs2)
 		o.Err <- nil
 	default:
 		var value uint8
 		if o.Val == "update" {
-			value = DataUpdated
+			value = state.Updated
 		} else {
 			o.Err <- fmt.Errorf("unknown value")
 			return
 		}
-		if ref, found := refs2[o.Key]; found {
-			ref.Change(value)
+		if ref, found := refs[o.Key]; found {
+			ref.State(value)
 			o.Err <- nil
 			return
 		}
@@ -55,75 +55,73 @@ func (o SetOp) handle(refs map[string]*DestRef, refs2 map[string]Actioner, g *gr
 
 // func assess(refs map[string]*RefLink) {
 // 	for _, ref := range refs {
-// 		if ref.Change == DataStable {
-// 			ref.Change = DataRemove
+// 		if ref.Change == state.Stable {
+// 			ref.Change = state.Remove
 // 			continue
 // 		}
 // 		for _, file := range ref.Files {
-// 			if file.Change() == DataStable {
-// 				file.Change(DataRemove)
+// 			if file.Change() == state.Stable {
+// 				file.Change(state.Remove)
 // 			}
 // 		}
 // 	}
 // }
 
-func finish(refs map[string]*DestRef) {
-	for _, ref := range refs {
-		// 		if ref.Change == DataRemove {
-		// 			fmt.Println("removing", src, "from refmap")
-		// 			delete(refs, src)
-		// 			continue
-		// 		}
+// func finish(refs map[string]*DestRef) {
+// 	for _, ref := range refs {
+// 		// 		if ref.Change == state.Remove {
+// 		// 			fmt.Println("removing", src, "from refmap")
+// 		// 			delete(refs, src)
+// 		// 			continue
+// 		// 		}
 
-		ref.Change = DataStable
-		// 		if ref.Change != DataFlagged && ref.Change != DataStable {
-		// 			fmt.Printf("setting %s status %s\n", src, statusText[ref.Change])
-		// 		}
+// 		ref.Change = state.Stable
+// 		// 		if ref.Change != state.Flagged && ref.Change != state.Stable {
+// 		// 			fmt.Printf("setting %s status %s\n", src, statusText[ref.Change])
+// 		// 		}
 
-		for _, file := range ref.Files {
-			// 			if file.Change() == DataRemove {
-			// 				fmt.Printf("removing %s -> %s from refmap\n", src, dst)
-			// 				delete(ref.Files, dst)
-			// 				continue
-			// 			}
-			// 			if file.Change() != DataFlagged && file.Change() != DataStable {
-			// 				fmt.Printf("setting %s -> %s status %s\n", src, dst, statusText[file.Change()])
-			// 			}
-			file.Change(DataStable)
-		}
-	}
-}
+// 		for _, file := range ref.Files {
+// 			// 			if file.Change() == state.Remove {
+// 			// 				fmt.Printf("removing %s -> %s from refmap\n", src, dst)
+// 			// 				delete(ref.Files, dst)
+// 			// 				continue
+// 			// 			}
+// 			// 			if file.Change() != state.Flagged && file.Change() != state.Stable {
+// 			// 				fmt.Printf("setting %s -> %s status %s\n", src, dst, statusText[file.Change()])
+// 			// 			}
+// 			file.State(state.Stable)
+// 		}
+// 	}
+// }
 
 func propagate(refs map[string]Actioner, g *graph.Graph) {
 	for node := range g.StartNodes() {
 		update := false
 		g.SetRun(func(node string) error {
-			if refs[node].Change() == DataUpdated {
+			if refs[node].State() == state.Updated {
 				update = true
 			}
 			if update {
-				refs[node].Change(DataUpdated)
+				refs[node].State(state.Updated)
 			}
 			return nil
 		}, node)
 	}
 }
 
-func finish2(refs map[string]Actioner) {
+func finish(refs map[string]Actioner) {
 	for _, ref := range refs {
-		// 		if ref.Change == DataRemove {
+		// 		if ref.Change == state.Remove {
 		// 			fmt.Println("removing", src, "from refmap")
 		// 			delete(refs, src)
 		// 			continue
 		// 		}
 
-		ref.Change(DataStable)
+		ref.State(state.Stable)
 	}
 }
 
-func (r Store) SetUpdate(kind, path string) error {
-	key := fmt.Sprintf("%s-%s", kind, path)
-
+func (r Store) SetUpdate(key string) error {
 	setter := &SetOp{
 		Key: key,
 		Val: "update",
