@@ -16,6 +16,7 @@ type Directory struct {
 	DestinationPath string           `json:"-"`
 	Template        *Templax         `json:"-"`
 	Copy            bool             `json:"copy-only"`
+	LinkTo          []string         `json:"linkto"`
 	Basic
 }
 
@@ -31,30 +32,49 @@ func (d *Directory) calculateHash() error {
 }
 
 func (d *Directory) Process(bb func(BranchSetter) (UpStepper, error), m refmap.Mutator) error {
+	d.RS = RandString(6)
+	d.SourcePath = path(d.SourcePath, d.Source)
+	d.DestinationPath = path(d.DestinationPath, d.Destination)
+
+	if d.LinkTo == nil {
+		d.LinkTo = []string{}
+	}
+
 	err := d.calculateHash()
 	if err != nil {
 		return err
 	}
 
-	d.SourcePath = path(d.SourcePath, d.Source)
-	d.DestinationPath = path(d.DestinationPath, d.Destination)
+	refName := fmt.Sprintf("dir:%s:%s", d.DestinationPath, d.RS)
+	m.AddRef(refName, d)
+	m.MapRef(d.ParentID, refName)
 
-	m.AddRef("dir:"+d.DestinationPath, d)
-	m.MapRef(d.ParentID, "dir:"+d.DestinationPath)
+	for name, e := range d.Execs {
+		e.Parent = d
+		e.ParentID = refName
+		err := e.calculateHash()
+		if err != nil {
+			return err
+		}
+		m.AddRef("exec:"+name, e)
+		m.MapRef(refName, "exec:"+name)
+		d.LinkTo = append(d.LinkTo, "exec:"+name)
+	}
 
 	for name, dir := range d.Directories {
 		dir.Parent = d
-		dir.ParentID = "dir:" + d.DestinationPath
+		dir.ParentID = refName
 		dir.SourcePath = filepath.Join(d.SourcePath, name)
 		dir.DestinationPath = filepath.Join(d.DestinationPath, name)
 		dir.Name = name
+		dir.LinkTo = d.LinkTo
 		dir.Process(bb, m)
 	}
 
 	for name, file := range d.Files {
 		file.Name = name
 		file.Parent = d
-		file.ParentID = "dir:" + d.DestinationPath
+		file.ParentID = refName
 
 		err := file.calculateHash()
 		if err != nil {
@@ -63,7 +83,6 @@ func (d *Directory) Process(bb func(BranchSetter) (UpStepper, error), m refmap.M
 
 		_, err = bb(file)
 		if err != nil {
-			fmt.Println("error", err)
 			return err
 		}
 
@@ -76,7 +95,12 @@ func (d *Directory) Process(bb func(BranchSetter) (UpStepper, error), m refmap.M
 		destination := filepath.Join(d.DestinationPath, name)
 		m.AddRef("file:"+destination, file)
 		m.MapRef(file.ParentID, "file:"+destination)
+
+		for _, lt := range d.LinkTo {
+			m.MapRef("file:"+destination, lt)
+		}
 	}
+
 	return nil
 }
 

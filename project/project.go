@@ -32,12 +32,24 @@ func (p *Project) Process(bb func(entity.BranchSetter) (entity.UpStepper, error)
 
 	m.AddRef("project", p)
 
+	cleLinks := []string{}
+	for name, e := range p.Execs {
+		e.Parent = p
+		e.ParentID = "project"
+		e.Process()
+
+		m.AddRef("exec:"+name, e)
+		m.MapRef("project", "exec:"+name)
+		cleLinks = append(cleLinks, "exec:"+name)
+	}
+
 	for name, dir := range p.Directories {
 		dir.Name = name
 		dir.Parent = p
 		dir.ParentID = "project"
 		dir.SourcePath = name
 		dir.DestinationPath = name
+		dir.LinkTo = cleLinks
 		err := dir.Process(bb, m)
 		if err != nil {
 			return err

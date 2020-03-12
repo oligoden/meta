@@ -136,7 +136,7 @@ func TestDirectoryProcessing(t *testing.T) {
 				}
 			}
 
-			exp := "dir:" + dirParent.DestinationPath
+			exp := "dir:" + dirParent.DestinationPath + ":" + dirParent.RS
 			got := dir.ParentID
 			if got != exp {
 				t.Errorf(`expected "%s", got "%s"`, exp, got)
@@ -160,8 +160,8 @@ func TestDirectoryProcessing(t *testing.T) {
 				t.Errorf(`expected "%s", got "%s"`, exp, got)
 			}
 
-			exp1 := "dir:" + dir.DestinationPath
-			exp2 := "dir:" + dirParent.DestinationPath
+			exp1 := "dir:" + dir.DestinationPath + ":" + dir.RS
+			exp2 := "dir:" + dirParent.DestinationPath + ":" + dirParent.RS
 			if _, fnd := rm.nodes[exp1]; !fnd {
 				t.Errorf(`expected to find "%s"`, exp1)
 			}
@@ -201,7 +201,7 @@ func TestDirectoryProcessing(t *testing.T) {
 					}
 				}
 
-				exp = "dir:" + dir.DestinationPath
+				exp = "dir:" + dir.DestinationPath + ":" + dir.RS
 				got = dir.Files[fn].ParentID
 				if got != exp {
 					t.Errorf(`expected "%s", got "%s"`, exp, got)
@@ -218,7 +218,7 @@ func TestDirectoryProcessing(t *testing.T) {
 				}
 
 				exp1 = "file:" + filepath.Join(dir.DestinationPath, fn)
-				exp2 = "dir:" + dir.DestinationPath
+				exp2 = "dir:" + dir.DestinationPath + ":" + dir.RS
 				if _, fnd := rm.nodes[exp1]; !fnd {
 					t.Errorf(`expected to find "%s"`, exp1)
 				}
@@ -265,6 +265,8 @@ func TestDirectoryProcessingHashCalc(t *testing.T) {
 	m.Directories["a"].DestinationPath = "a"
 	m.Directories["a"].SourcePath = "a"
 	m.Directories["a"].Name = "a"
+	m.Directories["a"].ParentID = "project:name"
+	m.Directories["a"].Parent = m
 	m.Directories["a"].Process(entity.BuildBranch, rm)
 
 	hash := m.Directories["a"].Hash()
