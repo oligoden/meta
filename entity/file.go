@@ -7,16 +7,21 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/oligoden/meta/entity/state"
 )
 
 type file struct {
 	Name      string            `json:"name"`
 	Copy      bool              `json:"copy-only"`
+	DontWrite bool              `json:"dont-write"`
 	Source    string            `json:"source"`
+	IgnoreDS  bool              `json:"ignore-default"`
 	Templates map[string]string `json:"templates"`
 	Parent    UpStepper         `json:"-"`
+	ParentID  string            `json:"-"`
 	Branch    DataBranch        `json:"-"`
-	Detection
+	state.Detect
 }
 
 func (file *file) calculateHash() error {
@@ -39,32 +44,28 @@ func (file *file) Perform(ctx context.Context) error {
 	RootSrcDir := ctx.Value(ContextKey("source")).(string)
 	RootDstDir := ctx.Value(ContextKey("destination")).(string)
 
-	srcFilename := file.Name
-	srcDir := ""
+	srcFilename := filepath.Base(file.Source)
 	dstFilename := strings.TrimSuffix(file.Name, ".tmpl")
-
-	if file.Source != "" {
-		srcFilename = filepath.Base(file.Source)
-		srcDir = filepath.Dir(file.Source)
-	}
 
 	parentDS := file.Parent.(*Directory)
 	defaultSrcDir := parentDS.SourcePath
 	defaultDstDir := parentDS.DestinationPath
-	srcFileLocation := filepath.Join(RootSrcDir, defaultSrcDir, srcDir, srcFilename)
-	dstFileLocation := filepath.Join(RootDstDir, defaultDstDir, dstFilename)
+	srcDirLocation := filepath.Join(RootSrcDir, defaultSrcDir)
+	srcDirFullLocation := filepath.Join(RootSrcDir, filepath.Dir(file.Source))
+	dstDirLocation := filepath.Join(RootDstDir, defaultDstDir)
+	srcFileLocation := filepath.Join(srcDirFullLocation, srcFilename)
+	dstFileLocation := filepath.Join(dstDirLocation, dstFilename)
 
-	if _, err := os.Stat(dstFileLocation); err == nil {
-		if !ctx.Value(ContextKey("force")).(bool) {
-			return nil
-		}
-	} else if os.IsNotExist(err) {
-		os.MkdirAll(filepath.Join(RootDstDir, defaultDstDir), os.ModePerm)
-	} else {
-		return err
-	}
+	// if _, err := os.Stat(dstFileLocation); err == nil {
+	// 	if !ctx.Value(ContextKey("force")).(bool) {
+	// 		return nil
+	// 	}
+	// } else if os.IsNotExist(err) {
+	os.MkdirAll(dstDirLocation, os.ModePerm)
+	// } else {
+	// 	return err
+	// }
 
-	fmt.Println("create", dstFileLocation)
 	f, err := os.Create(dstFileLocation)
 	if err != nil {
 		return err
@@ -87,18 +88,16 @@ func (file *file) Perform(ctx context.Context) error {
 	} else {
 		if parentDS.Template == nil || ctx.Value(ContextKey("watching")).(bool) {
 			parentDS.Template = new(Templax)
-			err = parentDS.Template.Prepare(filepath.Join(RootSrcDir, defaultSrcDir))
+			err = parentDS.Template.Prepare(srcDirLocation)
 			if err != nil {
 				return err
 			}
 		}
 
-		if file.Source != "" {
-			if filepath.Dir(file.Source) != "." {
-				err := parentDS.Template.Prepare(srcFileLocation)
-				if err != nil {
-					return err
-				}
+		if srcDirLocation != srcDirFullLocation {
+			err := parentDS.Template.Prepare(srcFileLocation)
+			if err != nil {
+				return err
 			}
 		}
 

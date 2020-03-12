@@ -27,8 +27,8 @@ import (
 	"os"
 
 	"github.com/oligoden/meta/entity"
-	"github.com/oligoden/meta/mapping"
 	"github.com/oligoden/meta/project"
+	"github.com/oligoden/meta/refmap"
 
 	"github.com/spf13/cobra"
 )
@@ -69,7 +69,7 @@ Use the force flag (-f) to force rebuilding of all files.`,
 			return
 		}
 
-		rm := mapping.Start(metaFolderName)
+		rm := refmap.Start()
 		err = p.Process(project.BuildBranch, rm)
 		if err != nil {
 			fmt.Println("error proccessing project", err)
@@ -91,7 +91,22 @@ Use the force flag (-f) to force rebuilding of all files.`,
 		ctx = context.WithValue(ctx, entity.ContextKey("destination"), destinationLocation)
 		ctx = context.WithValue(ctx, entity.ContextKey("force"), forceFlag)
 		fmt.Printf("source %+v\n", ctx.Value(entity.ContextKey("source")))
-		project.Build(ctx, rm)
+
+		for _, ref := range rm.ChangedFiles() {
+			err = ref.Perform(ctx)
+			if err != nil {
+				fmt.Println("error performing file actions,", err)
+				return
+			}
+		}
+
+		for _, ref := range rm.ChangedExecs() {
+			err = ref.Perform(ctx)
+			if err != nil {
+				fmt.Println("error performing exec actions,", err)
+				return
+			}
+		}
 	},
 }
 

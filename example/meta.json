@@ -1,0 +1,15 @@
+{
+    "name": "Example",
+    "directories": {
+        "a":{
+            "files": {
+                "aa.ext": {}
+            }
+        }
+    },
+    "execs": {
+        "cp": {
+            "cmd": ["cp", "a/aa.ext", "a/ab.ext"]
+        }
+    }
+}

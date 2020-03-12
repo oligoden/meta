@@ -1,15 +1,14 @@
-package entity_test
+package state_test
 
 import (
 	"fmt"
 	"testing"
 
-	"github.com/oligoden/meta/entity"
-	"github.com/oligoden/meta/mapping"
+	"github.com/oligoden/meta/entity/state"
 )
 
 func TestHash(t *testing.T) {
-	d := entity.Detection{}
+	d := state.Detect{}
 
 	err := d.HashOf("hash-this")
 	if err != nil {
@@ -20,8 +19,8 @@ func TestHash(t *testing.T) {
 		t.Errorf(`expected hash, got empty sting`)
 	}
 
-	exp := fmt.Sprintf("%d", mapping.DataAdded)
-	got := fmt.Sprintf("%d", d.Change())
+	exp := fmt.Sprintf("%d", state.Added)
+	got := fmt.Sprintf("%d", d.State())
 	if got != exp {
 		t.Errorf(`expected "%s", got "%s"`, exp, got)
 	}
@@ -31,8 +30,8 @@ func TestHash(t *testing.T) {
 		t.Error(err)
 	}
 
-	exp = status[mapping.DataChecked]
-	got = status[d.Change()]
+	exp = status[state.Checked]
+	got = status[d.State()]
 	if got != exp {
 		t.Errorf(`expected "%s", got "%s"`, exp, got)
 	}
@@ -42,17 +41,17 @@ func TestHash(t *testing.T) {
 		t.Error(err)
 	}
 
-	exp = status[mapping.DataUpdated]
-	got = status[d.Change()]
+	exp = status[state.Updated]
+	got = status[d.State()]
 	if got != exp {
 		t.Errorf(`expected "%s", got "%s"`, exp, got)
 	}
 }
 
 var status = map[uint8]string{
-	mapping.DataStable:  "DataStable",
-	mapping.DataChecked: "DataChecked",
-	mapping.DataUpdated: "DataUpdated",
-	mapping.DataAdded:   "DataAdded",
-	mapping.DataRemove:  "DataRemove",
+	state.Stable:  "Stable",
+	state.Checked: "Checked",
+	state.Updated: "Updated",
+	state.Added:   "Added",
+	state.Remove:  "Remove",
 }

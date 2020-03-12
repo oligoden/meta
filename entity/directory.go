@@ -1,10 +1,11 @@
 package entity
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 
-	"github.com/oligoden/meta/mapping"
+	"github.com/oligoden/meta/refmap"
 )
 
 type Directory struct {
@@ -15,6 +16,7 @@ type Directory struct {
 	DestinationPath string           `json:"-"`
 	Template        *Templax         `json:"-"`
 	Copy            bool             `json:"copy-only"`
+	LinkTo          []string         `json:"linkto"`
 	Basic
 }
 
@@ -29,26 +31,50 @@ func (d *Directory) calculateHash() error {
 	return nil
 }
 
-func (d *Directory) Process(bb func(BranchSetter) (UpStepper, error), m mapping.Mutator) error {
+func (d *Directory) Process(bb func(BranchSetter) (UpStepper, error), m refmap.Mutator) error {
+	d.RS = RandString(6)
+	d.SourcePath = path(d.SourcePath, d.Source)
+	d.DestinationPath = path(d.DestinationPath, d.Destination)
+
+	if d.LinkTo == nil {
+		d.LinkTo = []string{}
+	}
+
 	err := d.calculateHash()
 	if err != nil {
 		return err
 	}
 
-	d.SourcePath = path(d.SourcePath, d.Source)
-	d.DestinationPath = path(d.DestinationPath, d.Destination)
+	refName := fmt.Sprintf("dir:%s:%s", d.DestinationPath, d.RS)
+	m.AddRef(refName, d)
+	m.MapRef(d.ParentID, refName)
+
+	for name, e := range d.Execs {
+		e.Parent = d
+		e.ParentID = refName
+		err := e.calculateHash()
+		if err != nil {
+			return err
+		}
+		m.AddRef("exec:"+name, e)
+		m.MapRef(refName, "exec:"+name)
+		d.LinkTo = append(d.LinkTo, "exec:"+name)
+	}
 
 	for name, dir := range d.Directories {
 		dir.Parent = d
+		dir.ParentID = refName
 		dir.SourcePath = filepath.Join(d.SourcePath, name)
 		dir.DestinationPath = filepath.Join(d.DestinationPath, name)
 		dir.Name = name
+		dir.LinkTo = d.LinkTo
 		dir.Process(bb, m)
 	}
 
 	for name, file := range d.Files {
 		file.Name = name
 		file.Parent = d
+		file.ParentID = refName
 
 		err := file.calculateHash()
 		if err != nil {
@@ -60,17 +86,21 @@ func (d *Directory) Process(bb func(BranchSetter) (UpStepper, error), m mapping.
 			return err
 		}
 
-		filename := name
-		// 	if file.Source != "" {
-		// 		filename = file.Source
-		// 	}
+		if file.Source == "" {
+			file.Source = filepath.Join(d.SourcePath, name)
+		} else if strings.HasPrefix(file.Source, ".") {
+			file.Source = filepath.Join(d.SourcePath, file.Source)
+		}
 
-		if m != nil {
-			source := filepath.Join(d.SourcePath, filename)
-			destination := filepath.Join(d.DestinationPath, name)
-			m.Write(source, destination, file)
+		destination := filepath.Join(d.DestinationPath, name)
+		m.AddRef("file:"+destination, file)
+		m.MapRef(file.ParentID, "file:"+destination)
+
+		for _, lt := range d.LinkTo {
+			m.MapRef("file:"+destination, lt)
 		}
 	}
+
 	return nil
 }
 
