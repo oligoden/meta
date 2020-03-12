@@ -36,10 +36,18 @@ func ExampleBuild() {
 	ctx = context.WithValue(ctx, entity.ContextKey("destination"), ".")
 	ctx = context.WithValue(ctx, entity.ContextKey("force"), true)
 
-	for _, ref := range rm.ChangedRefs() {
+	for _, ref := range rm.ChangedFiles() {
 		err = ref.Perform(ctx)
 		if err != nil {
 			fmt.Println("error performing file actions,", err)
+			return
+		}
+	}
+
+	for _, ref := range rm.ChangedExecs() {
+		err = ref.Perform(ctx)
+		if err != nil {
+			fmt.Println("error performing exec actions,", err)
 			return
 		}
 	}

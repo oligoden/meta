@@ -7,7 +7,9 @@
             }
         }
     },
-    "actions": {
-        
+    "execs": {
+        "cp": {
+            "cmd": ["cp", "a/aa.ext", "a/ab.ext"]
+        }
     }
 }
