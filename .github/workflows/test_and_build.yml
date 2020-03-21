@@ -23,7 +23,7 @@ jobs:
         go test -cover github.com/oligoden/meta/entity
         go test -cover github.com/oligoden/meta/entity/state
         go test -cover github.com/oligoden/meta/refmap
-        go test -cover github.com/oligoden/meta/example
+        go test github.com/oligoden/meta/example
 
   build:
     runs-on: ubuntu-latest
