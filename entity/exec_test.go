@@ -23,7 +23,7 @@ func TestExecPerforming(t *testing.T) {
 		{
 			desc:    "normal exec",
 			cle:     "cp",
-			prps:    `"cmd":["cp", "a/aa.ext", "a/ab.ext"]`,
+			prps:    `"cmd":["cp", filepath.Join("a","aa.ext"), filepath.Join("a","ab.ext")]`,
 			content: "a",
 		},
 	}
