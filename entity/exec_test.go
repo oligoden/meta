@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/oligoden/meta/entity/state"
@@ -14,6 +15,9 @@ import (
 )
 
 func TestExecPerforming(t *testing.T) {
+	fp1 := filepath.Join("a", "aa.ext")
+	fp2 := filepath.Join("a", "ab.ext")
+
 	testCases := []struct {
 		desc    string
 		cle     string
@@ -23,7 +27,7 @@ func TestExecPerforming(t *testing.T) {
 		{
 			desc:    "normal exec",
 			cle:     "cp",
-			prps:    `"cmd":["cp", filepath.Join("a","aa.ext"), filepath.Join("a","ab.ext")]`,
+			prps:    fmt.Sprintf(`"cmd":["cp", %s, %s]`, fp1, fp2),
 			content: "a",
 		},
 	}
