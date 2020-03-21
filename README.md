@@ -1,20 +1,69 @@
 [![Build Status](https://github.com/oligoden/meta/workflows/test%20and%20build/badge.svg)](https://github.com/oligoden/meta/actions?workflow=test%20and%20build)
 [![Go Report Card](https://goreportcard.com/badge/github.com/oligoden/meta)](https://goreportcard.com/report/github.com/oligoden/meta)
 
-# Meta (Library an Base Tool)
-Build applications by copying, parsing and bundling files from a meta-source directory as described by a configuration data file.
+# Meta
 
-## Meta Programming
-Programming on meta files combines the benefits of configuration files and template files to allow rapid development of applications and improved maintainability without sacrificing customisation or adding abstractions. Programming is done in a meta directory on files and templates that are used to generate the regular application source code. A configuration file contains all the data used for template parsing and file placement specification. Finally, commands can be executed on the generated files to compile, transpile or perform any other processes.
+Welcome to this meta programming tool where you can build applications by
+copying, parsing and bundling files from a meta code directory as described
+by a configuration data file. With many additional features, Meta can make
+your development and even devops work more efficient.
 
-Meta programming add the benefits of:
-- having a reduced code base since templates can be shared by multiple files,
-- improve development speed with the ability to configure applications,
-- and allows quick switching of the generated source code between different environments.
+With Meta you can do the following:
+- working on a reduced code base since templates can be shared by multiple files
+- improve development speed with the ability to configure applications
+- quick switching of the generated source code between different environments
 
-A watch mode forms a critical part of the builder. This allows the programmer to work in the meta source directory instead of the regular source directory and having changes pull through seamlessly into the entire application.
+Hope you find it interesting.
 
-## Overview
+## Table of Contents
+
+* [Quick Start](https://github.com/oligoden/meta#quick-start)
+* [Introduction](https://github.com/oligoden/meta#introduction)
+  * [Motivation](https://github.com/oligoden/meta#motivation)
+  * [Meta Programming](https://github.com/oligoden/meta#meta-programming)
+  * [Overview](https://github.com/oligoden/meta#overview)
+  * [Usage](https://github.com/oligoden/meta#usage)
+* [Configuration Reference](https://github.com/oligoden/meta#meta.json-configuration-reference)
+* [Extending to your own builder](https://github.com/oligoden/meta#extending-to-your-own-builder)
+
+## Quick Start
+
+```
+go install github.com/oligoden/meta
+meta build
+```
+
+## Introduction
+
+### Motivation
+
+In an attempt to come up with techniques to increase application development
+rates without lossing accessibility to source code, Meta was developed and
+grown over a process of 3 years.
+A tradeoff exists with simply adding abstractions. By definition the programmer
+gets removed from the under lying source code and losses "power" in exchange
+for ease.
+Meta follows an orhorgonal approach by giving you more perspective over your
+source code from where you can better control and monitor it, instead of hiding
+it.
+How do we accomplish all that? By doing programming of programming or in short,
+meta programming.
+
+### Meta Programming - our take on it
+There are many ways to apply meta programming. We use a template based approach
+and a configuration file to control files and template mapping and provide data
+for the templates. Programming is done in a meta code directory on files and
+templates that are mapped to the application source code.
+
+A configuration file contains the data used for template parsing and file
+placement instructions. Finally, native system commands can also be specified
+to transpile or perform other processes on the source code.
+
+A watch mode forms a critical part of the builder. This allows the programmer
+to work in the meta code directory instead of the source code directory and
+have changes pull through seamlessly into the entire application.
+
+### Overview
 
 The builder uses the `meta.json` configuration file
 and the template files (in a meta source folder) to
@@ -28,7 +77,7 @@ The builder will transfer files from sources to destinations by:
 - use file key as destination name
 - create destination file
 
-## Using as stand-alone
+### Usage
 
 The builder can be executed with:
 
@@ -55,219 +104,10 @@ A `-w` flag can be added to put the builder into
 updated when the meta code is changed.
 Use the `-h` flag for help.
 
-## Implementing your own builder
-
-*coming*
-
 ## meta.json Configuration Reference
 
-The config file defines the project at the top level. The project structure is:
+Refer to [The meta.json Configuration Reference](https://github.com/oligoden/meta/blob/master/meta.json-Reference.md)
 
-```json
-{
-  "name": "project-name",
-  "directories": {},
-  "actions": {},
-}
-```
+## Extending to your own builder
 
-File structures are specified within an object with key `directories`.
-The `directories` object can contain key-value pairs of multiple directories
-that can each be viewed as a directory in the project.
-
-```json
-{
-  "directories": {
-    "dir-name": {},
-    "dir-name": {},
-  }
-}
-```
-
-The FSs can contain child FSs within an `directories` object, aswell as file objects as key-value pairs under an object with a `files` key.
-These are the files that will be built.
-
-```json
-{
-  "directories": {
-    "dir-name": {
-      "files": {
-        "file-name.ext": {},
-        "file-name.ext": {},
-      },
-      "directories": {
-        "dir-name": {
-          "files": {}
-        }
-      }
-    }
-  }
-}
-```
-
-By default, a file in the meta directory
-will be parsed and written to a file (named with the file key)
-and placed under a directory (named with the FS key)
-in the project root directory.
-
-```json
-{
-  "directories": {
-    "one": {
-      "files": {
-        "aaa.ext": {},
-        "bbb.ext": {}
-      }
-    },
-    "two": {
-      "files": {
-        "ccc.ext": {}
-      },
-      "directories": {
-        "six": {
-          "files": {
-            "jjj.ext": {}
-          }
-        }
-      }
-    }
-  }
-}
-```
-will build to:
-
-```
-./meta/one/aaa.ext -> ./one/aaa.ext
-./meta/one/bbb.ext -> ./one/bbb.ext
-./meta/two/ccc.ext -> ./two/ccc.ext
-./meta/two/six/jjj.ext -> ./two/six/jjj.ext
-```
-
-### File Location Modifications
-
-The source and destination paths can be modified with the `from` and `dest` keys. Consider the example:
-
-```json
-{
-  "directories": {
-    "one": {
-      "directories": {
-        "two": {
-          "dest": "D",
-          "files": {
-            "aaa.ext": {}
-          }
-        }
-      }
-    }
-  }
-}
-```
-
-D can be replaced as follows to modify the destination location:
-```
-D = "" (no effect)
-./meta/one/two/aaa.ext -> ./one/two/aaa.ext
-
-D = "sub" (add sub directory)
-./meta/one/two/aaa.ext -> ./one/two/sub/aaa.ext
-
-D = "sub/sub" (add sub directories)
-./meta/one/two/aaa.ext -> ./one/two/sub/sub/aaa.ext
-
-D = "." (stay in current directory)
-./meta/one/two/aaa.ext -> ./one/aaa.ext
-
-D = "sub" (sub directory from current directory)
-./meta/one/two/aaa.ext -> ./one/sub/aaa.ext
-
-D = "/" (back to root directory)
-./meta/one/two/aaa.ext -> ./aaa.ext
-
-D = "/sub" (sub directory from current directory)
-./meta/one/two/aaa.ext -> ./sub/aaa.ext
-```
-
-The `from` key can be used in the same way as the `dest` was use above to modify the source location.
-
-### Copying files only
-
-The `copy` key can be used at directory and file level to copy files directly.
-
-```json
-{
-  "directories": {
-    "one": {
-      "copy": true,
-      "files": {
-        "aaa.ext": {},
-        "bbb.ext": {}
-      }
-    },
-    "two": {
-      "files": {
-        "ccc.ext": {},
-        "ddd.ext": {"copy": true}
-      }
-    }
-  }
-}
-```
-
-In the example above, both files in directory `one` are copied but only `ddd.ext`
-in directory `two` is copied while `ccc.ext` is parsed as normal.
-By default the copy field will be false. If set to true, file parsing will be
-skipped.
-
-### Actions
-
-Commands can be executed on the generated files. They are specified in the
-`actions` key will typically look like:
-
-```
-"actions": {
-  "action-a": {
-    "pattern": "some-regex",
-    "command": ["program", "params", "..."]
-  }
-}
-```
-
-Whenever a filename matches the pattern, the command will be added to the
-actions list under the name of the action (`action-a` in the example above).
-After all files are generated, the builder will go through this list
-and execute the commands. The order is by default non-specific
-but can controlled with an optional `dependant` key.
-
-```
-"actions": {
-  "a": {
-    "pattern": "some-regex",
-    "command": ["program", "params", "..."],
-    "depends-on": ["b", "c"]
-  },
-  "b": {
-    "pattern": "some-regex",
-    "command": ["program", "params", "..."],
-  },
-  "c": {
-    "pattern": "some-regex",
-    "command": ["program", "params", "..."],
-  }
-}
-```
-
-In the example above action `a` will only be executed after `b` and `c` are executed.
-
-Specifying timeouts are also optional and can be done with the
-`timeout` key and an integer (unsigned) giving the time in milliseconds.
-
-```
-"actions": {
-  "a": {
-    "pattern": "some-regex",
-    "command": ["program", "params", "..."],
-    "timeout": 100
-  }
-}
-```
+*coming*
