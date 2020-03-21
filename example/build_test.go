@@ -29,7 +29,7 @@ func ExampleBuild() {
 	rm := refmap.Start()
 	err = p.Process(project.BuildBranch, rm)
 	if err != nil {
-		fmt.Println("error proccessing project,", err)
+		fmt.Println("error processing project,", err)
 		return
 	}
 	rm.Evaluate()
