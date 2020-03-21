@@ -1,4 +1,5 @@
-![](https://github.com/oligoden/meta/workflows/GoBuild/badge.svg)
+[![Build Status](https://github.com/oligoden/meta/workflows/test%20and%20build/badge.svg)](https://github.com/oligoden/meta/actions?workflow=test%20and%20build)
+[![Go Report Card](https://goreportcard.com/badge/github.com/oligoden/meta)](https://goreportcard.com/report/github.com/oligoden/meta)
 
 # Meta (Library an Base Tool)
 Build applications by copying, parsing and bundling files from a meta-source directory as described by a configuration data file.

@@ -1,10 +1,7 @@
 package refmap
 
 import (
-	"fmt"
-
 	graph "github.com/oligoden/math-graph"
-	"github.com/oligoden/meta/entity/state"
 )
 
 type addOp struct {
@@ -16,21 +13,9 @@ type addOp struct {
 func (o addOp) handle(refs map[string]Actioner, g *graph.Graph) {
 	if _, found := refs[o.key]; !found {
 		refs[o.key] = o.val
-		refs[o.key].State(state.Added)
 		g.Add(o.key)
 	} else {
-		if refs[o.key].State() == state.Added {
-			refs[o.key] = o.val
-			refs[o.key].State(state.Added)
-			fmt.Printf("WARNING - duplicate %s added\n", o.key)
-		} else {
-			if refs[o.key].Hash() == o.val.Hash() {
-				o.val.State(state.Checked)
-			} else {
-				refs[o.key] = o.val
-				refs[o.key].State(state.Updated)
-			}
-		}
+		refs[o.key] = o.val
 	}
 
 	o.rsp <- nil

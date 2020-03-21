@@ -40,6 +40,10 @@ func (file *file) SetBranch(b ...DataBranch) DataBranch {
 	return file.Branch
 }
 
+func (file file) Identifier() string {
+	return file.Source
+}
+
 func (file *file) Perform(ctx context.Context) error {
 	RootSrcDir := ctx.Value(ContextKey("source")).(string)
 	RootDstDir := ctx.Value(ContextKey("destination")).(string)
@@ -56,15 +60,15 @@ func (file *file) Perform(ctx context.Context) error {
 	srcFileLocation := filepath.Join(srcDirFullLocation, srcFilename)
 	dstFileLocation := filepath.Join(dstDirLocation, dstFilename)
 
-	// if _, err := os.Stat(dstFileLocation); err == nil {
-	// 	if !ctx.Value(ContextKey("force")).(bool) {
-	// 		return nil
-	// 	}
-	// } else if os.IsNotExist(err) {
-	os.MkdirAll(dstDirLocation, os.ModePerm)
-	// } else {
-	// 	return err
-	// }
+	if _, err := os.Stat(dstFileLocation); err == nil {
+		if !ctx.Value(ContextKey("force")).(bool) {
+			return nil
+		}
+	} else if os.IsNotExist(err) {
+		os.MkdirAll(dstDirLocation, os.ModePerm)
+	} else {
+		return err
+	}
 
 	f, err := os.Create(dstFileLocation)
 	if err != nil {

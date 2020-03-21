@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/oligoden/meta/entity"
+	"github.com/oligoden/meta/refmap"
 
 	"github.com/oligoden/meta/project"
 )
@@ -54,7 +55,8 @@ func TestProcess(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = p.Process(project.BuildBranch, nil)
+	rm := refmap.Start()
+	err = p.Process(project.BuildBranch, rm)
 	if err != nil {
 		t.Error(err)
 	}
@@ -98,7 +100,8 @@ func TestProcessCheckHashChange(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = p.Process(entity.BuildBranch, nil)
+	rm := refmap.Start()
+	err = p.Process(entity.BuildBranch, rm)
 	if err != nil {
 		t.Error(err)
 	}
@@ -117,7 +120,7 @@ func TestProcessCheckHashChange(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = p.Process(entity.BuildBranch, nil)
+	err = p.Process(entity.BuildBranch, rm)
 	if err != nil {
 		t.Error(err)
 	}

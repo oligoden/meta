@@ -32,7 +32,6 @@ func (o SetOp) handle(refs map[string]Actioner, g *graph.Graph) {
 		g.Evaluate()
 		o.Err <- nil
 	case "finish":
-		// finish(refs)
 		finish(refs)
 		o.Err <- nil
 	default:
@@ -63,33 +62,6 @@ func (o SetOp) handle(refs map[string]Actioner, g *graph.Graph) {
 // 			if file.Change() == state.Stable {
 // 				file.Change(state.Remove)
 // 			}
-// 		}
-// 	}
-// }
-
-// func finish(refs map[string]*DestRef) {
-// 	for _, ref := range refs {
-// 		// 		if ref.Change == state.Remove {
-// 		// 			fmt.Println("removing", src, "from refmap")
-// 		// 			delete(refs, src)
-// 		// 			continue
-// 		// 		}
-
-// 		ref.Change = state.Stable
-// 		// 		if ref.Change != state.Flagged && ref.Change != state.Stable {
-// 		// 			fmt.Printf("setting %s status %s\n", src, statusText[ref.Change])
-// 		// 		}
-
-// 		for _, file := range ref.Files {
-// 			// 			if file.Change() == state.Remove {
-// 			// 				fmt.Printf("removing %s -> %s from refmap\n", src, dst)
-// 			// 				delete(ref.Files, dst)
-// 			// 				continue
-// 			// 			}
-// 			// 			if file.Change() != state.Flagged && file.Change() != state.Stable {
-// 			// 				fmt.Printf("setting %s -> %s status %s\n", src, dst, statusText[file.Change()])
-// 			// 			}
-// 			file.State(state.Stable)
 // 		}
 // 	}
 // }

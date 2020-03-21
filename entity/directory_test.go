@@ -2,6 +2,7 @@ package entity_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"path/filepath"
 	"testing"
 
@@ -50,6 +51,15 @@ func TestDirectoryProcessing(t *testing.T) {
 			name:         "aa",
 			fsp:          "a/other",
 			fdp:          "a/aa",
+		},
+		{
+			desc:         "source stay in current and add directory and test file",
+			dirSwitch:    []string{"a", "aa"},
+			modDirSource: "./other",
+			name:         "aa",
+			fsp:          "a/other",
+			fdp:          "a/aa",
+			filenames:    []string{"aaa.ext"},
 		},
 		{
 			desc:         "source go to root",
@@ -136,7 +146,7 @@ func TestDirectoryProcessing(t *testing.T) {
 				}
 			}
 
-			exp := "dir:" + dirParent.DestinationPath + ":" + dirParent.RS
+			exp := "dir:" + dirParent.SourcePath + ":" + dirParent.Name
 			got := dir.ParentID
 			if got != exp {
 				t.Errorf(`expected "%s", got "%s"`, exp, got)
@@ -160,8 +170,8 @@ func TestDirectoryProcessing(t *testing.T) {
 				t.Errorf(`expected "%s", got "%s"`, exp, got)
 			}
 
-			exp1 := "dir:" + dir.DestinationPath + ":" + dir.RS
-			exp2 := "dir:" + dirParent.DestinationPath + ":" + dirParent.RS
+			exp1 := "dir:" + dir.SourcePath + ":" + dir.Name
+			exp2 := "dir:" + dirParent.SourcePath + ":" + dirParent.Name
 			if _, fnd := rm.nodes[exp1]; !fnd {
 				t.Errorf(`expected to find "%s"`, exp1)
 			}
@@ -191,6 +201,12 @@ func TestDirectoryProcessing(t *testing.T) {
 					t.Errorf("expected '%s', got '%s'", exp, got)
 				}
 
+				exp = filepath.Join(dir.SourcePath, fn)
+				got = dir.Files[fn].Identifier()
+				if got != exp {
+					t.Errorf("expected '%s', got '%s'", exp, got)
+				}
+
 				if d, ok := dir.Files[fn].Parent.(*entity.Directory); !ok {
 					t.Error("parent is not a directory")
 				} else {
@@ -201,7 +217,7 @@ func TestDirectoryProcessing(t *testing.T) {
 					}
 				}
 
-				exp = "dir:" + dir.DestinationPath + ":" + dir.RS
+				exp = "dir:" + dir.SourcePath + ":" + dir.Name
 				got = dir.Files[fn].ParentID
 				if got != exp {
 					t.Errorf(`expected "%s", got "%s"`, exp, got)
@@ -217,8 +233,8 @@ func TestDirectoryProcessing(t *testing.T) {
 					t.Errorf("expected '%s', got '%s'", exp, got)
 				}
 
-				exp1 = "file:" + filepath.Join(dir.DestinationPath, fn)
-				exp2 = "dir:" + dir.DestinationPath + ":" + dir.RS
+				exp1 = "file:" + filepath.Join(dir.SourcePath, fn)
+				exp2 = "dir:" + dir.SourcePath + ":" + dir.Name
 				if _, fnd := rm.nodes[exp1]; !fnd {
 					t.Errorf(`expected to find "%s"`, exp1)
 				}
@@ -238,7 +254,7 @@ func TestDirectoryProcessing(t *testing.T) {
 	}
 }
 
-func TestDirectoryProcessingHashCalc(t *testing.T) {
+func TestDirectoryProcessingSame(t *testing.T) {
 	str := `{
 		"directories": {
 			"a": {
@@ -268,7 +284,6 @@ func TestDirectoryProcessingHashCalc(t *testing.T) {
 	m.Directories["a"].ParentID = "project:name"
 	m.Directories["a"].Parent = m
 	m.Directories["a"].Process(entity.BuildBranch, rm)
-
 	hash := m.Directories["a"].Hash()
 
 	m.Directories["a"].Files["aa.ext"].Copy = true
@@ -277,6 +292,106 @@ func TestDirectoryProcessingHashCalc(t *testing.T) {
 
 	if m.Directories["a"].Hash() != hash {
 		t.Error("expected hash to stay the same")
+	}
+}
+
+func TestDirectoryProcessingUpdate(t *testing.T) {
+	str := `{
+		"directories": {
+			"a": {
+				"directories": {
+					"aa": {
+						
+					}
+				},
+				"files": {
+					"aa.ext": {
+						
+					}
+				}
+			}
+		}
+		}`
+
+	rm := refMapStub{
+		nodes: map[string]refmap.Actioner{},
+		maps:  map[string]map[string]bool{},
+	}
+	m := entity.Basic{}
+	json.Unmarshal([]byte(str), &m)
+	m.Directories["a"].DestinationPath = "a"
+	m.Directories["a"].SourcePath = "a"
+	m.Directories["a"].Name = "a"
+	m.Directories["a"].ParentID = "project:name"
+	m.Directories["a"].Parent = m
+	m.Directories["a"].Process(entity.BuildBranch, rm)
+	hash := m.Directories["a"].Hash()
+
+	m.Directories["a"].Copy = true
+	m.Directories["a"].Process(entity.BuildBranch, rm)
+
+	if m.Directories["a"].Hash() == hash {
+		t.Error("expected hash to change")
+	}
+}
+
+func TestDirectoryProcessingLoadUpdate(t *testing.T) {
+	str := `{
+		"directories": {
+			"a": {
+				"directories": {
+					"aa": {
+						
+					}
+				},
+				"files": {
+					"aa.ext": {
+						
+					}
+				}
+			}
+		}
+	}`
+
+	rm := refMapStub{
+		nodes: map[string]refmap.Actioner{},
+		maps:  map[string]map[string]bool{},
+	}
+	m := entity.Basic{}
+	json.Unmarshal([]byte(str), &m)
+	m.Directories["a"].DestinationPath = "a"
+	m.Directories["a"].SourcePath = "a"
+	m.Directories["a"].Name = "a"
+	m.Directories["a"].ParentID = "project:name"
+	m.Directories["a"].Parent = m
+
+	m.Directories["a"].Process(entity.BuildBranch, rm)
+	hash := m.Directories["a"].Hash()
+
+	str = `{
+		"directories": {
+			"a": {
+				"copy-only": true,
+				"directories": {
+					"aa": {
+						
+					}
+				},
+				"files": {
+					"aa.ext": {
+						
+					}
+				}
+			}
+		}
+	}`
+	fmt.Printf("dir a, %+v\n", m.Directories["a"])
+	json.Unmarshal([]byte(str), &m)
+	fmt.Printf("dir a, %+v\n", m.Directories["a"])
+	m.Directories["a"].Process(entity.BuildBranch, rm)
+
+	if m.Directories["a"].Hash() == hash {
+		t.Error("expected hash to change")
 	}
 }
 

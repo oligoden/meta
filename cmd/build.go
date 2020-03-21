@@ -58,6 +58,7 @@ Use the force flag (-f) to force rebuilding of all files.`,
 			fmt.Println("error loading file", metaFileName, err)
 			return
 		}
+		f.Close()
 
 		if vl, _ := cmd.Flags().GetInt("verbose"); vl >= 1 {
 			fmt.Println("Processing")
@@ -80,7 +81,6 @@ Use the force flag (-f) to force rebuilding of all files.`,
 			fmt.Println("Building")
 		}
 
-		type buildContextKey string
 		destinationLocation, err := cmd.Flags().GetString("destination")
 		if err != nil {
 			fmt.Println("error getting destination location", err)
@@ -90,7 +90,6 @@ Use the force flag (-f) to force rebuilding of all files.`,
 		ctx := context.WithValue(context.Background(), entity.ContextKey("source"), metaFolderName)
 		ctx = context.WithValue(ctx, entity.ContextKey("destination"), destinationLocation)
 		ctx = context.WithValue(ctx, entity.ContextKey("force"), forceFlag)
-		fmt.Printf("source %+v\n", ctx.Value(entity.ContextKey("source")))
 
 		for _, ref := range rm.ChangedFiles() {
 			err = ref.Perform(ctx)
@@ -113,9 +112,9 @@ Use the force flag (-f) to force rebuilding of all files.`,
 func init() {
 	rootCmd.AddCommand(buildCmd)
 
-	buildCmd.PersistentFlags().String("metafile", "meta.json", "The meta file")
-	buildCmd.PersistentFlags().String("destination", "", "The destination folder")
-	buildCmd.PersistentFlags().String("metafolder", "payload", "The meta folder")
+	buildCmd.Flags().String("metafile", "meta.json", "The meta file")
+	buildCmd.Flags().String("destination", "", "The destination folder")
+	buildCmd.Flags().String("metafolder", "payload", "The meta folder")
 	buildCmd.Flags().BoolP("force", "f", false, "Force rebuilding of existing files")
 	buildCmd.Flags().IntP("verbose", "v", 0, "Set verbosity to 1, 2 or 3")
 }

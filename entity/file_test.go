@@ -128,78 +128,140 @@ func TestFilePerforming(t *testing.T) {
 	}
 }
 
-// func Test(t *testing.T) {
-// 	testCases := []struct {
-// 		desc  string
-// 		force bool
-// 		exp   string
-// 	}{
-// 		{
-// 			desc:  "without force",
-// 			force: false,
-// 			exp:   "abc",
-// 		},
-// 		{
-// 			desc:  "with force",
-// 			force: true,
-// 			exp:   "def",
-// 		},
-// 	}
-// 	for _, tC := range testCases {
-// 		t.Run(tC.desc, func(t *testing.T) {
-// 			os.Mkdir("testing/meta", os.ModePerm)
-// 			f1, _ := os.Create("testing/meta/a/aa.ext")
-// 			f1.WriteString("abc")
-// 			f1.Close()
+func TestFileForcing(t *testing.T) {
+	str := `{
+		"directories": {
+			"a": {
+				"directories": {
+					"aa": {
+						"files": {
+							"aab.ext": {}
+						}
+					}
+				}
+			}
+		}
+	}`
+	str = fmt.Sprintf(str)
 
-// 			str := `{"directories": {"a": {"files": {"aa.ext": {}}}}}`
+	m := &entity.Basic{}
+	err := json.Unmarshal([]byte(str), &m)
+	if err != nil {
+		t.Error("error unmarshalling,", err)
+	}
 
-// 			m := entity.Basic{}
-// 			err := json.Unmarshal([]byte(str), &m)
-// 			if err != nil {
-// 				t.Error("error unmarshalling,", err)
-// 			}
+	dir := m.Directories["a"]
+	dir.DestinationPath = "a"
+	dir.SourcePath = "a"
+	dir.Name = "a"
+	m.Directories["a"].ParentID = "project:name"
+	m.Directories["a"].Parent = m
 
-// 			dir := m.Directories["a"]
-// 			dir.DestinationPath = "a"
-// 			dir.SourcePath = "a"
-// 			dir.Name = "a"
-// 			rm := refmap.Start("testing/meta")
-// 			dir.Process(entity.BuildBranch, rm)
-// 			file := dir.Files["aa.ext"]
+	rm := refmap.Start()
+	rm.AddRef("project:name", m)
+	err = dir.Process(entity.BuildBranch, rm)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-// 			ctx := context.Background()
-// 			ctx = context.WithValue(ctx, entity.ContextKey("source"), "testing/meta")
-// 			ctx = context.WithValue(ctx, entity.ContextKey("destination"), "testing")
-// 			ctx = context.WithValue(ctx, entity.ContextKey("watching"), true)
-// 			ctx = context.WithValue(ctx, entity.ContextKey("force"), tC.force)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, entity.ContextKey("source"), "testing/meta")
+	ctx = context.WithValue(ctx, entity.ContextKey("destination"), "testing")
+	ctx = context.WithValue(ctx, entity.ContextKey("watching"), false)
+	ctx = context.WithValue(ctx, entity.ContextKey("force"), true)
 
-// 			err = file.Perform(ctx)
-// 			if err != nil {
-// 				t.Fatal(err)
-// 			}
+	f1, _ := os.Create("testing/a/aa/aab.ext")
+	f1.WriteString("abc")
+	f1.Close()
 
-// 			f1, _ = os.Create("testing/meta/a/aa.ext")
-// 			f1.WriteString("def")
-// 			f1.Close()
+	f1, _ = os.Create("testing/meta/a/aa/aab.ext")
+	f1.WriteString("def")
+	f1.Close()
 
-// 			err = file.Perform(ctx)
-// 			if err != nil {
-// 				t.Fatal(err)
-// 			}
+	err = dir.Directories["aa"].Files["aab.ext"].Perform(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-// 			content, err := ioutil.ReadFile("testing/a/aa.ext")
-// 			if err != nil {
-// 				t.Fatal(err)
-// 			}
-// 			exp := tC.exp
-// 			got := string(content)
-// 			if exp != got {
-// 				t.Errorf(`expected "%s", got "%s"`, exp, got)
-// 			}
+	content, err := ioutil.ReadFile("testing/a/aa/aab.ext")
+	if err != nil {
+		t.Fatal(err)
+	}
+	exp := "def"
+	got := string(content)
+	if exp != got {
+		t.Errorf(`expected "%s", got "%s"`, exp, got)
+	}
 
-// 			os.RemoveAll("testing/meta/a/aa.ext")
-// 			os.RemoveAll("testing/a/aa.ext")
-// 		})
-// 	}
-// }
+	os.RemoveAll("testing/meta/a/aa/aab.ext")
+	os.RemoveAll("testing/a/aa/aab.ext")
+}
+
+func TestFileNotForcing(t *testing.T) {
+	str := `{
+		"directories": {
+			"a": {
+				"directories": {
+					"aa": {
+						"files": {
+							"aab.ext": {}
+						}
+					}
+				}
+			}
+		}
+	}`
+	str = fmt.Sprintf(str)
+
+	m := &entity.Basic{}
+	err := json.Unmarshal([]byte(str), &m)
+	if err != nil {
+		t.Error("error unmarshalling,", err)
+	}
+
+	dir := m.Directories["a"]
+	dir.DestinationPath = "a"
+	dir.SourcePath = "a"
+	dir.Name = "a"
+	m.Directories["a"].ParentID = "project:name"
+	m.Directories["a"].Parent = m
+
+	rm := refmap.Start()
+	rm.AddRef("project:name", m)
+	err = dir.Process(entity.BuildBranch, rm)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, entity.ContextKey("source"), "testing/meta")
+	ctx = context.WithValue(ctx, entity.ContextKey("destination"), "testing")
+	ctx = context.WithValue(ctx, entity.ContextKey("watching"), false)
+	ctx = context.WithValue(ctx, entity.ContextKey("force"), false)
+
+	f1, _ := os.Create("testing/a/aa/aab.ext")
+	f1.WriteString("abc")
+	f1.Close()
+
+	f1, _ = os.Create("testing/meta/a/aa/aab.ext")
+	f1.WriteString("def")
+	f1.Close()
+
+	err = dir.Directories["aa"].Files["aab.ext"].Perform(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	content, err := ioutil.ReadFile("testing/a/aa/aab.ext")
+	if err != nil {
+		t.Fatal(err)
+	}
+	exp := "abc"
+	got := string(content)
+	if exp != got {
+		t.Errorf(`expected "%s", got "%s"`, exp, got)
+	}
+
+	os.RemoveAll("testing/meta/a/aa/aab.ext")
+	os.RemoveAll("testing/a/aa/aab.ext")
+}

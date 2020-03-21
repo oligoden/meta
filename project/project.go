@@ -24,12 +24,20 @@ func Load(f io.Reader) (*Project, error) {
 	return p, nil
 }
 
+func (p *Project) Load(f io.Reader) (*Project, error) {
+	dec := json.NewDecoder(f)
+	err := dec.Decode(p)
+	if err != nil {
+		return p, err
+	}
+	return p, nil
+}
+
 func (p *Project) Process(bb func(entity.BranchSetter) (entity.UpStepper, error), m refmap.Mutator) error {
 	err := p.calculateHash()
 	if err != nil {
 		return err
 	}
-
 	m.AddRef("project", p)
 
 	cleLinks := []string{}
@@ -62,6 +70,7 @@ func (p *Project) Process(bb func(entity.BranchSetter) (entity.UpStepper, error)
 func (p *Project) calculateHash() error {
 	pTemp := *p
 	pTemp.Directories = nil
+
 	err := p.HashOf(pTemp)
 	if err != nil {
 		return err

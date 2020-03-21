@@ -10,6 +10,7 @@ import (
 )
 
 type cle struct {
+	ID       string
 	Cmd      []string `json:"cmd"`
 	Timeout  uint     `json:"timeout"`
 	STDOut   *bytes.Buffer
@@ -26,6 +27,10 @@ func (exec *cle) calculateHash() error {
 		return err
 	}
 	return nil
+}
+
+func (e cle) Identifier() string {
+	return e.ID
 }
 
 func (e *cle) Process() error {

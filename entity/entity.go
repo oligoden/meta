@@ -16,7 +16,6 @@ type ContextKey string
 
 type Basic struct {
 	Name        string                `json:"name"`
-	RS          string                `json:"-"`
 	Directories map[string]*Directory `json:"directories"`
 	Execs       map[string]*cle       `json:"execs"`
 	ParentID    string                `json:"-"`
@@ -24,7 +23,11 @@ type Basic struct {
 	state.Detect
 }
 
-func (*Basic) Perform(context.Context) error {
+func (b Basic) Identifier() string {
+	return b.Name
+}
+
+func (Basic) Perform(context.Context) error {
 	return nil
 }
 

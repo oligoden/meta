@@ -46,50 +46,16 @@ func TestNormalAdding(t *testing.T) {
 	}
 }
 
-func TestAddingRefOverExistingRef(t *testing.T) {
-	rm := refmap.Start()
-	t1 := &testRef{}
-	rm.AddRef("a", t1)
-	t2 := &testRef{}
-	rm.AddRef("a", t2)
-	rm.Finish()
-
-	exp := refmap.StatusText[state.Added]
-	got := refmap.StatusText[t1.State()]
-	if got != exp {
-		t.Errorf(`expected "%s", got "%s"`, exp, got)
-	}
-	exp = refmap.StatusText[state.Stable]
-	got = refmap.StatusText[t2.State()]
-	if got != exp {
-		t.Errorf(`expected "%s", got "%s"`, exp, got)
-	}
-}
-
-func TestAddingSameRef(t *testing.T) {
-	rm := refmap.Start()
-	t1 := &testRef{hash: "abc"}
-	rm.AddRef("a", t1)
-	rm.Finish()
-
-	rm.AddRef("a", t1)
-	exp := refmap.StatusText[state.Checked]
-	got := refmap.StatusText[t1.State()]
-	if got != exp {
-		t.Errorf(`expected "%s", got "%s"`, exp, got)
-	}
-}
-
 func TestAddingUpdatedRef(t *testing.T) {
 	rm := refmap.Start()
-	t1 := &testRef{hash: "abc"}
+	t1 := &testRef{hash: "a", status: 3}
 	rm.AddRef("a", t1)
-	rm.Finish()
-
-	t2 := &testRef{hash: "def"}
+	t2 := &testRef{hash: "b", status: 3}
 	rm.AddRef("a", t2)
-	exp := refmap.StatusText[state.Updated]
-	got := refmap.StatusText[t2.State()]
+	rm.Evaluate()
+
+	exp := "b"
+	got := rm.ChangedRefs()[0].Hash()
 	if got != exp {
 		t.Errorf(`expected "%s", got "%s"`, exp, got)
 	}
@@ -98,6 +64,10 @@ func TestAddingUpdatedRef(t *testing.T) {
 type testRef struct {
 	status uint8
 	hash   string
+}
+
+func (testRef) Identifier() string {
+	return ""
 }
 
 func (testRef) Perform(c context.Context) error {

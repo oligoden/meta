@@ -66,6 +66,7 @@ type Actioner interface {
 	Perform(context.Context) error
 	State(...uint8) uint8
 	Hash() string
+	Identifier() string
 	// Remove(Config)
 }
 

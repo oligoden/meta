@@ -32,7 +32,6 @@ func (d *Directory) calculateHash() error {
 }
 
 func (d *Directory) Process(bb func(BranchSetter) (UpStepper, error), m refmap.Mutator) error {
-	d.RS = RandString(6)
 	d.SourcePath = path(d.SourcePath, d.Source)
 	d.DestinationPath = path(d.DestinationPath, d.Destination)
 
@@ -45,7 +44,7 @@ func (d *Directory) Process(bb func(BranchSetter) (UpStepper, error), m refmap.M
 		return err
 	}
 
-	refName := fmt.Sprintf("dir:%s:%s", d.DestinationPath, d.RS)
+	refName := fmt.Sprintf("dir:%s:%s", d.SourcePath, d.Name)
 	m.AddRef(refName, d)
 	m.MapRef(d.ParentID, refName)
 
@@ -88,16 +87,15 @@ func (d *Directory) Process(bb func(BranchSetter) (UpStepper, error), m refmap.M
 
 		if file.Source == "" {
 			file.Source = filepath.Join(d.SourcePath, name)
-		} else if strings.HasPrefix(file.Source, ".") {
+		} else if strings.HasPrefix(file.Source, "./") {
 			file.Source = filepath.Join(d.SourcePath, file.Source)
 		}
 
-		destination := filepath.Join(d.DestinationPath, name)
-		m.AddRef("file:"+destination, file)
-		m.MapRef(file.ParentID, "file:"+destination)
+		m.AddRef("file:"+file.Source, file)
+		m.MapRef(file.ParentID, "file:"+file.Source)
 
 		for _, lt := range d.LinkTo {
-			m.MapRef("file:"+destination, lt)
+			m.MapRef("file:"+file.Source, lt)
 		}
 	}
 

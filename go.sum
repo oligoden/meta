@@ -69,6 +69,12 @@ github.com/oligoden/math-graph v0.0.0-20200224190020-0323537aa4bb h1:zJFvNdVtoJA
 github.com/oligoden/math-graph v0.0.0-20200224190020-0323537aa4bb/go.mod h1:8Lf+7zgg/VIwSaSvvvKNoteCupzCDADYRA2cv2k7vso=
 github.com/oligoden/math-graph v0.0.1 h1:0WCkxlJeQPsdQIiTY2/pvJ6BV2iB3RBoGFtMM8F7Qe4=
 github.com/oligoden/math-graph v0.0.1/go.mod h1:8Lf+7zgg/VIwSaSvvvKNoteCupzCDADYRA2cv2k7vso=
+github.com/oligoden/math-graph v0.0.2 h1:h0MykVvdcIpiu0qCMqqtEWGgf7+X+ns7qr2XSNtYtdw=
+github.com/oligoden/math-graph v0.0.2/go.mod h1:8Lf+7zgg/VIwSaSvvvKNoteCupzCDADYRA2cv2k7vso=
+github.com/oligoden/math-graph v0.0.3 h1:JujdcI8yZt34JrzSOH3+r57toUY4iwGKF1C46mqbBJQ=
+github.com/oligoden/math-graph v0.0.3/go.mod h1:8Lf+7zgg/VIwSaSvvvKNoteCupzCDADYRA2cv2k7vso=
+github.com/oligoden/math-graph v0.0.4 h1:76fDnSxKOKX/F/Q3byhSAk2nRadbBH1eLhANOrftNCA=
+github.com/oligoden/math-graph v0.0.4/go.mod h1:8Lf+7zgg/VIwSaSvvvKNoteCupzCDADYRA2cv2k7vso=
 github.com/pelletier/go-toml v1.2.0/go.mod h1:5z9KED0ma1S8pY6P1sdut58dfprrGBbd/94hg7ilaic=
 github.com/pkg/errors v0.8.0/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
