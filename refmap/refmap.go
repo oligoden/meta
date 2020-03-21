@@ -8,28 +8,22 @@ import (
 )
 
 type Store struct {
-	// reads chan *readOp
-	Adds chan *addOp
-	Maps chan *mapOp
-	Sets chan *SetOp
-	// sync    chan *SyncOp
+	Adds    chan *addOp
+	Maps    chan *mapOp
+	Sets    chan *SetOp
 	Changed chan *changedOp
 	// Removed chan *RemovedOp
-	// Exec    chan *ExecOp
 	refs  map[string]Actioner
 	graph *graph.Graph
 }
 
 func Start() *Store {
 	s := &Store{}
-	// s.reads = make(chan *readOp)
 	s.Adds = make(chan *addOp)
 	s.Maps = make(chan *mapOp)
 	s.Sets = make(chan *SetOp)
-	// 	// s.sync = make(chan *SyncOp)
 	s.Changed = make(chan *changedOp)
 	// 	// s.Removed = make(chan *RemovedOp)
-	// 	// s.Exec = make(chan *ExecOp)
 
 	s.refs = make(map[string]Actioner)
 	s.graph = graph.New()
@@ -37,8 +31,6 @@ func Start() *Store {
 	go func() {
 		for {
 			select {
-			// case a := <-s.reads:
-			// 	a.Rsp <- s.core.refs[a.Src]
 			case a := <-s.Adds:
 				a.handle(s.refs, s.graph)
 			case a := <-s.Maps:
@@ -46,14 +38,10 @@ func Start() *Store {
 				a.rsp <- nil
 			case a := <-s.Sets:
 				a.handle(s.refs, s.graph)
-			// case sync := <-s.sync:
-			// 	sync.handle(s.core.refs)
 			case changed := <-s.Changed:
 				changed.handle(s.refs, s.graph)
 				// case removed := <-s.Removed:
 				// 	removed.handle(s.core.refs)
-				// case exec := <-s.Exec:
-				// 	exec.handle(s.core.execs)
 			}
 		}
 	}()
