@@ -2,7 +2,6 @@ package entity_test
 
 import (
 	"encoding/json"
-	"fmt"
 	"path/filepath"
 	"testing"
 
@@ -25,16 +24,16 @@ func TestDirectoryProcessing(t *testing.T) {
 			desc:      "test dir aa",
 			dirSwitch: []string{"a", "aa"},
 			name:      "aa",
-			fsp:       "a/aa",
-			fdp:       "a/aa",
+			fsp:       filepath.Join("a", "aa"),
+			fdp:       filepath.Join("a", "aa"),
 			filenames: []string{"aaa.ext"},
 		},
 		{
 			desc:      "test dir aaa",
 			dirSwitch: []string{"a", "aa", "aaa"},
 			name:      "aaa",
-			fsp:       "a/aa/aaa",
-			fdp:       "a/aa/aaa",
+			fsp:       filepath.Join("a", "aa", "aaa"),
+			fdp:       filepath.Join("a", "aa", "aaa"),
 		},
 		{
 			desc:         "source stay in current",
@@ -42,23 +41,23 @@ func TestDirectoryProcessing(t *testing.T) {
 			modDirSource: ".",
 			name:         "aa",
 			fsp:          "a",
-			fdp:          "a/aa",
+			fdp:          filepath.Join("a", "aa"),
 		},
 		{
 			desc:         "source stay in current and add directory",
 			dirSwitch:    []string{"a", "aa"},
-			modDirSource: "./other",
+			modDirSource: "." + string(filepath.Separator) + "other",
 			name:         "aa",
-			fsp:          "a/other",
-			fdp:          "a/aa",
+			fsp:          filepath.Join("a", "other"),
+			fdp:          filepath.Join("a", "aa"),
 		},
 		{
 			desc:         "source stay in current and add directory and test file",
 			dirSwitch:    []string{"a", "aa"},
-			modDirSource: "./other",
+			modDirSource: "." + string(filepath.Separator) + "other",
 			name:         "aa",
-			fsp:          "a/other",
-			fdp:          "a/aa",
+			fsp:          filepath.Join("a", "other"),
+			fdp:          filepath.Join("a", "aa"),
 			filenames:    []string{"aaa.ext"},
 		},
 		{
@@ -67,7 +66,7 @@ func TestDirectoryProcessing(t *testing.T) {
 			modDirSource: "/",
 			name:         "aa",
 			fsp:          "",
-			fdp:          "a/aa",
+			fdp:          filepath.Join("a", "aa"),
 		},
 		{
 			desc:         "source go to root and add directory",
@@ -75,7 +74,7 @@ func TestDirectoryProcessing(t *testing.T) {
 			modDirSource: "/other",
 			name:         "aa",
 			fsp:          "other",
-			fdp:          "a/aa",
+			fdp:          filepath.Join("a", "aa"),
 		},
 	}
 
@@ -227,7 +226,7 @@ func TestDirectoryProcessing(t *testing.T) {
 					t.Errorf("expected hash, got empty string")
 				}
 
-				exp = tC.fsp + "/" + fn
+				exp = filepath.Join(tC.fsp, fn)
 				got = dir.Files[fn].Source
 				if got != exp {
 					t.Errorf("expected '%s', got '%s'", exp, got)
@@ -385,9 +384,7 @@ func TestDirectoryProcessingLoadUpdate(t *testing.T) {
 			}
 		}
 	}`
-	fmt.Printf("dir a, %+v\n", m.Directories["a"])
 	json.Unmarshal([]byte(str), &m)
-	fmt.Printf("dir a, %+v\n", m.Directories["a"])
 	m.Directories["a"].Process(entity.BuildBranch, rm)
 
 	if m.Directories["a"].Hash() == hash {
