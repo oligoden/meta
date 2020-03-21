@@ -18,7 +18,12 @@ jobs:
     - name: Get dependencies
       run: go get -v -t -d ./...
     - name: Run tests
-      run: go test -v -covermode=count
+      run: |
+        go test -v -cover github.com/oligoden/meta/project
+        go test -v -cover github.com/oligoden/meta/entity
+        go test -v -cover github.com/oligoden/meta/entity/state
+        go test -v -cover github.com/oligoden/meta/refmap
+        go test -v -cover github.com/oligoden/meta/example
 
   build:
     runs-on: ubuntu-latest
@@ -33,4 +38,12 @@ jobs:
     - name: Get dependencies
       run: go get -v -t -d ./...
     - name: Build
-      run: go build -v .
+      run: |
+        export GO111MODULE=on
+        GOOS=windows GOARCH=amd64 go build -o bin/meta-windows-amd64.exe
+        GOOS=linux   GOARCH=amd64 go build -o bin/meta-linux-amd64
+    - name: upload artifacts
+      uses: actions/upload-artifact@master
+      with:
+        name: binaries
+        path: bin/
