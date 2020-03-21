@@ -27,7 +27,7 @@ func TestExecPerforming(t *testing.T) {
 		{
 			desc:    "normal exec",
 			cle:     "cp",
-			prps:    fmt.Sprintf(`"cmd":["cp", %s, %s]`, fp1, fp2),
+			prps:    fmt.Sprintf(`"cmd":["cp", "%s", "%s"]`, fp1, fp2),
 			content: "a",
 		},
 	}
