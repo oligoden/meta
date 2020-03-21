@@ -1,3 +1,5 @@
+// +build linux darwin
+
 package entity_test
 
 import (
