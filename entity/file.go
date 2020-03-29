@@ -45,10 +45,14 @@ func (file file) Identifier() string {
 }
 
 func (file *file) Perform(ctx context.Context) error {
+	verboseValue := ctx.Value(ContextKey("verbose")).(int)
 	RootSrcDir := ctx.Value(ContextKey("source")).(string)
 	RootDstDir := ctx.Value(ContextKey("destination")).(string)
 
 	srcFilename := filepath.Base(file.Source)
+	if verboseValue >= 1 {
+		fmt.Println("writing", srcFilename)
+	}
 	dstFilename := strings.TrimSuffix(file.Name, ".tmpl")
 
 	parentDS := file.Parent.(*Directory)

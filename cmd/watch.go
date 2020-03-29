@@ -63,7 +63,8 @@ var watchCmd = &cobra.Command{
 		}
 		f.Close()
 
-		if vl, _ := cmd.Flags().GetInt("verbose"); vl >= 1 {
+		verboseValue, _ := cmd.Flags().GetInt("verbose")
+		if verboseValue >= 1 {
 			fmt.Println("Processing")
 		}
 
@@ -81,7 +82,7 @@ var watchCmd = &cobra.Command{
 		}
 		rm.Evaluate()
 
-		if vl, _ := cmd.Flags().GetInt("verbose"); vl >= 1 {
+		if verboseValue >= 1 {
 			fmt.Println("Building")
 		}
 
@@ -95,6 +96,7 @@ var watchCmd = &cobra.Command{
 		ctx = context.WithValue(ctx, entity.ContextKey("destination"), destinationLocation)
 		ctx = context.WithValue(ctx, entity.ContextKey("force"), forceFlag)
 		ctx = context.WithValue(ctx, entity.ContextKey("watching"), true)
+		ctx = context.WithValue(ctx, entity.ContextKey("verbose"), verboseValue)
 
 		fileWatcher, err := fsnotify.NewWatcher()
 		if err != nil {
@@ -242,7 +244,7 @@ func init() {
 
 	watchCmd.Flags().String("metafile", "meta.json", "The meta file")
 	watchCmd.Flags().String("destination", "", "The destination folder")
-	watchCmd.Flags().String("metafolder", "payload", "The meta folder")
+	watchCmd.Flags().String("metafolder", "work", "The meta folder")
 	watchCmd.Flags().BoolP("force", "f", false, "Force rebuilding of existing files")
 	watchCmd.Flags().IntP("verbose", "v", 0, "Set verbosity to 1, 2 or 3")
 }
