@@ -105,25 +105,25 @@ The source and destination paths can be modified with the `from` and `dest` keys
 
 D can be replaced as follows to modify the destination location:
 ```
-D = "" (no effect)
+D = empty (no effect)
 ./meta/one/two/aaa.ext -> ./one/two/aaa.ext
 
-D = "sub" (add sub directory)
+D = sub (add sub directory)
 ./meta/one/two/aaa.ext -> ./one/two/sub/aaa.ext
 
-D = "sub/sub" (add sub directories)
+D = sub/sub (add sub/sub directories)
 ./meta/one/two/aaa.ext -> ./one/two/sub/sub/aaa.ext
 
-D = "." (stay in current directory)
+D = . (stay in current directory)
 ./meta/one/two/aaa.ext -> ./one/aaa.ext
 
-D = "sub" (sub directory from current directory)
+D = ./sub (sub directory from current directory)
 ./meta/one/two/aaa.ext -> ./one/sub/aaa.ext
 
-D = "/" (back to root directory)
+D = / (back to root directory)
 ./meta/one/two/aaa.ext -> ./aaa.ext
 
-D = "/sub" (sub directory from current directory)
+D = /sub (sub directory from root directory)
 ./meta/one/two/aaa.ext -> ./sub/aaa.ext
 ```
 
