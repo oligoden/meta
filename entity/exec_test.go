@@ -76,10 +76,11 @@ func TestExecPerforming(t *testing.T) {
 			rm.Evaluate()
 
 			ctx := context.Background()
-			ctx = context.WithValue(ctx, entity.ContextKey("source"), "testing/meta")
+			ctx = context.WithValue(ctx, entity.ContextKey("source"), "testing/work")
 			ctx = context.WithValue(ctx, entity.ContextKey("destination"), "testing")
 			ctx = context.WithValue(ctx, entity.ContextKey("watching"), false)
 			ctx = context.WithValue(ctx, entity.ContextKey("force"), false)
+			ctx = context.WithValue(ctx, entity.ContextKey("verbose"), 0)
 			err = dir.Files["aa.ext"].Perform(ctx)
 			if err != nil {
 				t.Fatal(err)

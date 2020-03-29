@@ -100,10 +100,11 @@ func TestFilePerforming(t *testing.T) {
 			}
 
 			ctx := context.Background()
-			ctx = context.WithValue(ctx, entity.ContextKey("source"), "testing/meta")
+			ctx = context.WithValue(ctx, entity.ContextKey("source"), "testing/work")
 			ctx = context.WithValue(ctx, entity.ContextKey("destination"), "testing")
 			ctx = context.WithValue(ctx, entity.ContextKey("watching"), false)
 			ctx = context.WithValue(ctx, entity.ContextKey("force"), false)
+			ctx = context.WithValue(ctx, entity.ContextKey("verbose"), 0)
 			err = file.Perform(ctx)
 			if err != nil {
 				t.Fatal(err)
@@ -165,16 +166,17 @@ func TestFileForcing(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, entity.ContextKey("source"), "testing/meta")
+	ctx = context.WithValue(ctx, entity.ContextKey("source"), "testing/work")
 	ctx = context.WithValue(ctx, entity.ContextKey("destination"), "testing")
 	ctx = context.WithValue(ctx, entity.ContextKey("watching"), false)
 	ctx = context.WithValue(ctx, entity.ContextKey("force"), true)
+	ctx = context.WithValue(ctx, entity.ContextKey("verbose"), 0)
 
 	f1, _ := os.Create("testing/a/aa/aab.ext")
 	f1.WriteString("abc")
 	f1.Close()
 
-	f1, _ = os.Create("testing/meta/a/aa/aab.ext")
+	f1, _ = os.Create("testing/work/a/aa/aab.ext")
 	f1.WriteString("def")
 	f1.Close()
 
@@ -193,7 +195,7 @@ func TestFileForcing(t *testing.T) {
 		t.Errorf(`expected "%s", got "%s"`, exp, got)
 	}
 
-	os.RemoveAll("testing/meta/a/aa/aab.ext")
+	os.RemoveAll("testing/work/a/aa/aab.ext")
 	os.RemoveAll("testing/a/aa/aab.ext")
 }
 
@@ -234,16 +236,17 @@ func TestFileNotForcing(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, entity.ContextKey("source"), "testing/meta")
+	ctx = context.WithValue(ctx, entity.ContextKey("source"), "testing/work")
 	ctx = context.WithValue(ctx, entity.ContextKey("destination"), "testing")
 	ctx = context.WithValue(ctx, entity.ContextKey("watching"), false)
 	ctx = context.WithValue(ctx, entity.ContextKey("force"), false)
+	ctx = context.WithValue(ctx, entity.ContextKey("verbose"), 0)
 
 	f1, _ := os.Create("testing/a/aa/aab.ext")
 	f1.WriteString("abc")
 	f1.Close()
 
-	f1, _ = os.Create("testing/meta/a/aa/aab.ext")
+	f1, _ = os.Create("testing/work/a/aa/aab.ext")
 	f1.WriteString("def")
 	f1.Close()
 
@@ -262,6 +265,6 @@ func TestFileNotForcing(t *testing.T) {
 		t.Errorf(`expected "%s", got "%s"`, exp, got)
 	}
 
-	os.RemoveAll("testing/meta/a/aa/aab.ext")
+	os.RemoveAll("testing/work/a/aa/aab.ext")
 	os.RemoveAll("testing/a/aa/aab.ext")
 }

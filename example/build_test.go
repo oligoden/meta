@@ -34,9 +34,11 @@ func ExampleBuild() {
 	}
 	rm.Evaluate()
 
-	ctx := context.WithValue(context.Background(), entity.ContextKey("source"), "payload")
+	ctx := context.WithValue(context.Background(), entity.ContextKey("source"), "work")
 	ctx = context.WithValue(ctx, entity.ContextKey("destination"), ".")
 	ctx = context.WithValue(ctx, entity.ContextKey("force"), true)
+	ctx = context.WithValue(ctx, entity.ContextKey("watch"), false)
+	ctx = context.WithValue(ctx, entity.ContextKey("verbose"), 0)
 
 	for _, ref := range rm.ChangedFiles() {
 		err = ref.Perform(ctx)
