@@ -1,5 +1,5 @@
 bin/*
 
 entity/testing/*
-!entity/testing/meta
+!entity/testing/work
 !entity/testing/meta.json
