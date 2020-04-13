@@ -118,8 +118,16 @@ func (file *file) Perform(ctx context.Context) error {
 		}
 	}
 
-	f.Seek(0, 0)
-	lineControl(f)
+	_, err = f.Seek(0, 0)
+	if err != nil {
+		return fmt.Errorf("error rewinding file, %w", err)
+	}
+
+	err = lineControl(f)
+	if err != nil {
+		return fmt.Errorf("error with line control, %w", err)
+	}
+
 	if err := f.Close(); err != nil {
 		log.Println("error closing file", err)
 	}
@@ -181,8 +189,20 @@ func lineControl(f *os.File) error {
 		}
 	}
 
-	f.Truncate(0)
-	f.Seek(0, 0)
-	buf.WriteTo(f)
+	err := f.Truncate(0)
+	if err != nil {
+		return fmt.Errorf("error truncating file, %w", err)
+	}
+
+	_, err = f.Seek(0, 0)
+	if err != nil {
+		return fmt.Errorf("error rewinding file, %w", err)
+	}
+
+	_, err = buf.WriteTo(f)
+	if err != nil {
+		return fmt.Errorf("error writing to file, %w", err)
+	}
+
 	return nil
 }
