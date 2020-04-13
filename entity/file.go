@@ -1,9 +1,12 @@
 package entity
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -74,7 +77,7 @@ func (file *file) Perform(ctx context.Context) error {
 		return err
 	}
 
-	f, err := os.Create(dstFileLocation)
+	f, err := os.OpenFile(dstFileLocation, os.O_RDWR|os.O_CREATE, 0755)
 	if err != nil {
 		return err
 	}
@@ -114,7 +117,72 @@ func (file *file) Perform(ctx context.Context) error {
 			return fmt.Errorf("error executing template, %w", err)
 		}
 	}
-	f.Close()
 
+	f.Seek(0, 0)
+	lineControl(f)
+	if err := f.Close(); err != nil {
+		log.Println("error closing file", err)
+	}
+
+	return nil
+}
+
+func lineControl(f *os.File) error {
+	var buf bytes.Buffer
+	r := bufio.NewReader(f)
+
+	for {
+		line, err := r.ReadString('\n')
+		if err != nil {
+			if err == io.EOF && line == "" {
+				break
+			} else if err != io.EOF {
+				return fmt.Errorf("error reading line, %w", err)
+			}
+		}
+
+		if strings.HasPrefix(strings.TrimSpace(line), "//xxx") {
+			for {
+				line, err := r.ReadString('\n')
+				if err != nil {
+					if err == io.EOF && line == "" {
+						break
+					} else if err != io.EOF {
+						return fmt.Errorf("error reading line, %w", err)
+					}
+				}
+
+				if strings.HasPrefix(strings.TrimSpace(line), "//end") {
+					break
+				}
+			}
+		} else if strings.HasPrefix(strings.TrimSpace(line), "//+++") {
+			for {
+				line, err := r.ReadString('\n')
+				if err != nil {
+					if err == io.EOF && line == "" {
+						break
+					} else if err != io.EOF {
+						return fmt.Errorf("error reading line, %w", err)
+					}
+				}
+
+				if strings.HasPrefix(strings.TrimSpace(line), "//end") {
+					break
+				}
+
+				if strings.HasPrefix(strings.TrimSpace(line), "//") {
+					line = strings.Replace(line, "//", "", 1)
+				}
+				buf.WriteString(line)
+			}
+		} else {
+			buf.WriteString(line)
+		}
+	}
+
+	f.Truncate(0)
+	f.Seek(0, 0)
+	buf.WriteTo(f)
 	return nil
 }

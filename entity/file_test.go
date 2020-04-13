@@ -55,6 +55,11 @@ func TestFilePerforming(t *testing.T) {
 			dirCopy: true,
 			content: "abc {{.Filename}}",
 		},
+		{
+			desc:    "test line inclusion control of .go files",
+			file:    "aaa.go",
+			content: "add this\n",
+		},
 	}
 
 	for _, tC := range testCases {
