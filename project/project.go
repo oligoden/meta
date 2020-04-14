@@ -42,6 +42,7 @@ func (p *Project) Process(bb func(entity.BranchSetter) (entity.UpStepper, error)
 
 	cleLinks := []string{}
 	for name, e := range p.Execs {
+		e.Name = name
 		e.Parent = p
 		e.ParentID = "project"
 		e.Process()

@@ -3,6 +3,7 @@ package entity
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"os/exec"
 	"time"
 
@@ -10,7 +11,7 @@ import (
 )
 
 type cle struct {
-	ID       string
+	Name     string
 	Cmd      []string `json:"cmd"`
 	Timeout  uint     `json:"timeout"`
 	STDOut   *bytes.Buffer
@@ -30,7 +31,11 @@ func (exec *cle) calculateHash() error {
 }
 
 func (e cle) Identifier() string {
-	return e.ID
+	output := fmt.Sprintf("action %s was run\noutput:\n", e.Name)
+	output += e.STDOut.String()
+	output += "\nerror:\n"
+	output += e.STDErr.String()
+	return output
 }
 
 func (e *cle) Process() error {

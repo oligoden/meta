@@ -49,6 +49,7 @@ func (d *Directory) Process(bb func(BranchSetter) (UpStepper, error), m refmap.M
 	m.MapRef(d.ParentID, refName)
 
 	for name, e := range d.Execs {
+		e.Name = name
 		e.Parent = d
 		e.ParentID = refName
 		err := e.calculateHash()

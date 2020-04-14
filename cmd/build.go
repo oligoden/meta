@@ -107,6 +107,7 @@ Use the force flag (-f) to force rebuilding of all files.`,
 			err = ref.Perform(ctx)
 			if err != nil {
 				fmt.Println("error performing exec actions,", err)
+				fmt.Println(ref.Identifier())
 				return
 			}
 		}
