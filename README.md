@@ -33,6 +33,7 @@ Hope you find it interesting. :smiley: :south_africa:
   * [Meta Programming](https://github.com/oligoden/meta#meta-programming)
   * [Overview](https://github.com/oligoden/meta#overview)
   * [Usage](https://github.com/oligoden/meta#usage)
+* [Installation](https://github.com/oligoden/meta#installation)
 * [Configuration Reference](https://github.com/oligoden/meta#meta.json-configuration-reference)
 * [Extending to your own builder](https://github.com/oligoden/meta#extending-to-your-own-builder)
 
@@ -156,6 +157,29 @@ A `-w` flag can be added to put the builder into
 **watch mode** where files will be automatically
 updated when the meta code is changed.
 Use the `-h` flag for help.
+
+## Installation
+
+Download compressed package from [github.com/oligoden/meta/releases](https://github.com/oligoden/meta/releases)
+
+Optionally download the `SHA256SUMS` file and run
+
+```bash
+sha256sum -c SHA256SUMS 2>&1 | grep OK
+```
+
+Extract the package
+
+```bash
+#Linux, macOS or FreeBSD
+unzip meta-$VERSION-$OS-$ARCH.zip -d /usr/local
+```
+
+Add binary to your environment:
+
+```bash
+export PATH=$PATH:/usr/local/meta/bin
+```
 
 ## meta.json Configuration Reference
 

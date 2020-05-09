@@ -1,18 +1,33 @@
 # The meta.json Configuration Reference
 
+## Table of Contents
+
+* [Structure](https://github.com/oligoden/meta.json-configuration-reference#structure)
+  * [File Creation](https://github.com/oligoden/meta.json-configuration-reference#file-creation)
+    * [File Location Modifications](https://github.com/oligoden/meta.json-configuration-reference#file-location-modifications)
+    * [Copying Files Only](https://github.com/oligoden/meta.json-configuration-reference#copying-files-only)
+  * [Execs](https://github.com/oligoden/meta.json-configuration-reference#execs)
+* [Installation](https://github.com/oligoden/meta#installation)
+* [Configuration Reference](https://github.com/oligoden/meta#meta.json-configuration-reference)
+* [Extending to your own builder](https://github.com/oligoden/meta#extending-to-your-own-builder)
+
+## Structure
+
 The config file defines the project at the top level. The project structure is:
 
 ```json
 {
   "name": "project-name",
   "directories": {},
-  "actions": {},
+  "execs": {},
 }
 ```
 
+### File Creation
+
 File structures are specified within an object with key `directories`.
 The `directories` object can contain key-value pairs of multiple directories
-that can each be viewed as a directory in the project.
+that that represent directories in the project.
 
 ```json
 {
@@ -23,7 +38,7 @@ that can each be viewed as a directory in the project.
 }
 ```
 
-The FSs can contain child FSs within an `directories` object, aswell as file objects as key-value pairs under an object with a `files` key.
+The `directories` can contain child `directories` objects, aswell as `files` objects as key-value pairs.
 These are the files that will be built.
 
 ```json
@@ -44,9 +59,9 @@ These are the files that will be built.
 }
 ```
 
-By default, a file in the meta directory
+By default, a file in the work directory
 will be parsed and written to a file (named with the file key)
-and placed under a directory (named with the FS key)
+and placed under a directory (named with the directory key)
 in the project root directory.
 
 ```json
@@ -82,7 +97,7 @@ will build to:
 ./meta/two/six/jjj.ext -> ./two/six/jjj.ext
 ```
 
-## File Location Modifications
+#### File Location Modifications
 
 The source and destination paths can be modified with the `from` and `dest` keys. Consider the example:
 
@@ -129,7 +144,7 @@ D = /sub (sub directory from root directory)
 
 The `from` key can be used in the same way as the `dest` was use above to modify the source location.
 
-## Copying files only
+#### Copying Files Only
 
 The `copy` key can be used at directory and file level to copy files directly.
 
@@ -158,54 +173,29 @@ in directory `two` is copied while `ccc.ext` is parsed as normal.
 By default the copy field will be false. If set to true, file parsing will be
 skipped.
 
-## Actions
+### Execs
 
 Commands can be executed on the generated files. They are specified in the
-`actions` key will typically look like:
+`execs` key will typically look like:
 
 ```
-"actions": {
-  "action-a": {
-    "pattern": "some-regex",
-    "command": ["program", "params", "..."]
+"execs": {
+  "exec-a": {
+    "cmd": ["program", "params", "..."]
   }
 }
 ```
 
-Whenever a filename matches the pattern, the command will be added to the
-actions list under the name of the action (`action-a` in the example above).
-After all files are generated, the builder will go through this list
-and execute the commands. The order is by default non-specific
-but can controlled with an optional `dependant` key.
-
-```
-"actions": {
-  "a": {
-    "pattern": "some-regex",
-    "command": ["program", "params", "..."],
-    "depends-on": ["b", "c"]
-  },
-  "b": {
-    "pattern": "some-regex",
-    "command": ["program", "params", "..."],
-  },
-  "c": {
-    "pattern": "some-regex",
-    "command": ["program", "params", "..."],
-  }
-}
-```
-
-In the example above action `a` will only be executed after `b` and `c` are executed.
+Whenever a node is updated, the commands linked to the node and all the parent
+nodes will be executed in the order specified by the tree.
 
 Specifying timeouts are also optional and can be done with the
 `timeout` key and an integer (unsigned) giving the time in milliseconds.
 
 ```
-"actions": {
+"execs": {
   "a": {
-    "pattern": "some-regex",
-    "command": ["program", "params", "..."],
+    "cmd": ["program", "params", "..."],
     "timeout": 100
   }
 }
