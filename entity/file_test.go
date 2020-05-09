@@ -39,6 +39,12 @@ func TestFilePerforming(t *testing.T) {
 			content: "ijk",
 		},
 		{
+			desc:    "test source in parent directory",
+			file:    "aab.ext",
+			prps:    `"source":"aa.ext"`,
+			content: "abc",
+		},
+		{
 			desc:    "test removal of .tmpl",
 			file:    "aaa.ext.tmpl",
 			content: "ghi",

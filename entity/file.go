@@ -101,7 +101,10 @@ func (file *file) Perform(ctx context.Context) error {
 			parentDS.Template = new(Templax)
 			err = parentDS.Template.Prepare(srcDirLocation)
 			if err != nil {
-				return err
+				if !strings.Contains(err.Error(), "template: pattern matches no files") {
+					return err
+				}
+				log.Println(err)
 			}
 		}
 
