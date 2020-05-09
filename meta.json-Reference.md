@@ -2,14 +2,11 @@
 
 ## Table of Contents
 
-* [Structure](https://github.com/oligoden/meta.json-configuration-reference#structure)
-  * [File Creation](https://github.com/oligoden/meta.json-configuration-reference#file-creation)
-    * [File Location Modifications](https://github.com/oligoden/meta.json-configuration-reference#file-location-modifications)
-    * [Copying Files Only](https://github.com/oligoden/meta.json-configuration-reference#copying-files-only)
-  * [Execs](https://github.com/oligoden/meta.json-configuration-reference#execs)
-* [Installation](https://github.com/oligoden/meta#installation)
-* [Configuration Reference](https://github.com/oligoden/meta#meta.json-configuration-reference)
-* [Extending to your own builder](https://github.com/oligoden/meta#extending-to-your-own-builder)
+* [Structure](https://github.com/oligoden/meta/blob/master/meta.json-Reference.md#structure)
+  * [File Creation](https://github.com/oligoden/meta/blob/master/meta.json-Reference.md#file-creation)
+    * [File Location Modifications](https://github.com/oligoden/meta/blob/master/meta.json-Reference.md#file-location-modifications)
+    * [Copying Files Only](https://github.com/oligoden/meta/blob/master/meta.json-Reference.md#copying-files-only)
+  * [Execs](https://github.com/oligoden/meta/blob/master/meta.json-Reference.md#execs)
 
 ## Structure
 
@@ -187,10 +184,9 @@ Commands can be executed on the generated files. They are specified in the
 ```
 
 Whenever a node is updated, the commands linked to the node and all the parent
-nodes will be executed in the order specified by the tree.
-
-Specifying timeouts are also optional and can be done with the
-`timeout` key and an integer (unsigned) giving the time in milliseconds.
+nodes will be executed in the order specified by the tree. Specifying timeouts
+are also optional and can be done with the `timeout` key and an integer
+(unsigned) giving the time in milliseconds.
 
 ```
 "execs": {

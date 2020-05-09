@@ -160,9 +160,9 @@ Use the `-h` flag for help.
 
 ## Installation
 
-Download compressed package from [github.com/oligoden/meta/releases](https://github.com/oligoden/meta/releases)
+Download the compressed package from [github.com/oligoden/meta/releases](https://github.com/oligoden/meta/releases)
 
-Optionally download the `SHA256SUMS` file and run
+Optionally, download the `SHA256SUMS` file and run
 
 ```bash
 sha256sum -c SHA256SUMS 2>&1 | grep OK
