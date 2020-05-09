@@ -137,6 +137,7 @@ var watchCmd = &cobra.Command{
 		stopSignal := make(chan os.Signal, 1)
 		signal.Notify(stopSignal, os.Interrupt, os.Kill)
 
+		ctx = context.WithValue(ctx, entity.ContextKey("force"), true)
 		done := make(chan bool)
 		go func() {
 			run := true
