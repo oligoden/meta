@@ -113,18 +113,23 @@ var watchCmd = &cobra.Command{
 		defer metafileWatcher.Close()
 		metafileWatcher.Add(metaFileName)
 
+		fmt.Println("Rebuilding files...")
 		for _, ref := range rm.ChangedFiles() {
 			filename := filepath.Join(metaFolderName, ref.Identifier())
-			fmt.Println("monitoring", filename)
+			if verboseValue >= 1 {
+				fmt.Println("monitoring", filename)
+			}
 			fileWatcher.Add(filename)
 			err = ref.Perform(ctx)
 			if err != nil {
-				fmt.Println("error performing file actions,", err)
+				fmt.Println("error performing file actions on", ref.Identifier(), err)
 				return
 			}
 		}
 
+		fmt.Println("Running execs...")
 		for _, ref := range rm.ChangedExecs() {
+			fmt.Println(ref.Identifier())
 			err = ref.Perform(ctx)
 			if err != nil {
 				fmt.Println("error performing exec actions,", err)
@@ -204,31 +209,36 @@ var watchCmd = &cobra.Command{
 					}
 					rm.Propagate()
 
+					fmt.Println("Rebuilding files...")
 					for _, ref := range rm.ChangedFiles() {
-						fmt.Println("rebuilding", ref.Identifier())
+						if verboseValue >= 1 {
+							fmt.Println("rebuilding", ref.Identifier())
+						}
 						err = ref.Perform(ctx)
 						if err != nil {
-							fmt.Println("error performing file actions,", err)
-							run = false
+							fmt.Println("error performing file actions on", ref.Identifier(), err)
+							rm.Finish()
+							metafileChange = false
+							fileChange = false
 							break
 						}
 					}
 
-					if !run {
-						break
+					if !metafileChange && !fileChange {
+						continue
 					}
 
+					fmt.Println("Running execs...")
 					for _, ref := range rm.ChangedExecs() {
 						err = ref.Perform(ctx)
 						if err != nil {
 							fmt.Println("error performing exec actions,", err)
-							run = false
 							break
 						}
+						fmt.Println(ref.Identifier())
 					}
 
 					rm.Finish()
-
 					metafileChange = false
 					fileChange = false
 				}

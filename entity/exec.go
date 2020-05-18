@@ -31,10 +31,13 @@ func (exec *cle) calculateHash() error {
 }
 
 func (e cle) Identifier() string {
-	output := fmt.Sprintf("action %s was run\noutput:\n", e.Name)
-	output += e.STDOut.String()
-	output += "\nerror:\n"
-	output += e.STDErr.String()
+	output := fmt.Sprintf("action %s was run", e.Name)
+	if e.STDOut.String() != "" {
+		output += "\nstdout: " + e.STDOut.String()
+	}
+	if e.STDErr.String() != "" {
+		output += "\nstderr: " + e.STDErr.String()
+	}
 	return output
 }
 
