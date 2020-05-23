@@ -39,7 +39,7 @@ type mapOp struct {
 	rsp   chan error
 }
 
-func (r Store) MapRef(key0, key1 string, setOption ...uint) {
+func (r Store) MapRef(key0, key1 string, setOption ...uint) error {
 	set := uint(1)
 	if len(setOption) > 0 {
 		set = setOption[0]
@@ -52,6 +52,5 @@ func (r Store) MapRef(key0, key1 string, setOption ...uint) {
 		rsp:   make(chan error),
 	}
 	r.Maps <- m
-	<-m.rsp
-	return
+	return <-m.rsp
 }

@@ -34,8 +34,7 @@ func Start() *Store {
 			case a := <-s.Adds:
 				a.handle(s.refs, s.graph)
 			case a := <-s.Maps:
-				s.graph.Link(a.start, a.end)
-				a.rsp <- nil
+				a.rsp <- s.graph.Link(a.start, a.end)
 			case a := <-s.Sets:
 				a.handle(s.refs, s.graph)
 			case changed := <-s.Changed:
