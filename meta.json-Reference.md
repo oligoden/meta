@@ -6,6 +6,7 @@
   * [File Creation](https://github.com/oligoden/meta/blob/master/meta.json-Reference.md#file-creation)
     * [File Location Modifications](https://github.com/oligoden/meta/blob/master/meta.json-Reference.md#file-location-modifications)
     * [Copying Files Only](https://github.com/oligoden/meta/blob/master/meta.json-Reference.md#copying-files-only)
+    * [Including files in files](https://github.com/oligoden/meta/blob/master/meta.json-Reference.md#including-files-in-files-fan-in)
   * [Execs](https://github.com/oligoden/meta/blob/master/meta.json-Reference.md#execs)
 
 ## Structure
