@@ -14,6 +14,9 @@ import (
 )
 
 func TestFilePerforming(t *testing.T) {
+	d1 := []byte("add this\nthis should not be here")
+	ioutil.WriteFile("testing/a/aa/aaa.go", d1, 0644)
+
 	testCases := []struct {
 		desc    string
 		file    string
@@ -56,6 +59,12 @@ func TestFilePerforming(t *testing.T) {
 			content: "abc {{.Filename}}",
 		},
 		{
+			desc:    "test templates on file",
+			file:    "aa-comp.ext",
+			prps:    `"templates":["a/aa/aa-incl.ext"]`,
+			content: "yul gar jom",
+		},
+		{
 			desc:    "test copy only set on directory",
 			file:    "aaa.ext",
 			dirCopy: true,
@@ -63,7 +72,7 @@ func TestFilePerforming(t *testing.T) {
 		},
 		{
 			desc:    "test line inclusion control of .go files",
-			file:    "aaa.go",
+			file:    "aaa.go.tmpl",
 			content: "add this\n",
 		},
 	}
@@ -114,7 +123,7 @@ func TestFilePerforming(t *testing.T) {
 			ctx = context.WithValue(ctx, entity.ContextKey("source"), "testing/work")
 			ctx = context.WithValue(ctx, entity.ContextKey("destination"), "testing")
 			ctx = context.WithValue(ctx, entity.ContextKey("watching"), false)
-			ctx = context.WithValue(ctx, entity.ContextKey("force"), false)
+			ctx = context.WithValue(ctx, entity.ContextKey("force"), true)
 			ctx = context.WithValue(ctx, entity.ContextKey("verbose"), 0)
 			err = file.Perform(ctx)
 			if err != nil {

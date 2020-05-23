@@ -34,6 +34,8 @@ func (p *Project) Load(f io.Reader) (*Project, error) {
 }
 
 func (p *Project) Process(bb func(entity.BranchSetter) (entity.UpStepper, error), m refmap.Mutator) error {
+	p.Edges = []entity.Edge{}
+
 	err := p.calculateHash()
 	if err != nil {
 		return err
@@ -59,10 +61,16 @@ func (p *Project) Process(bb func(entity.BranchSetter) (entity.UpStepper, error)
 		dir.SourcePath = name
 		dir.DestinationPath = name
 		dir.LinkTo = cleLinks
+		dir.Edges = p.Edges
 		err := dir.Process(bb, m)
+		p.Edges = dir.Edges
 		if err != nil {
 			return err
 		}
+	}
+
+	for _, e := range p.Edges {
+		m.MapRef(e.Start, e.End)
 	}
 
 	return nil

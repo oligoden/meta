@@ -20,7 +20,13 @@ type Basic struct {
 	Execs       map[string]*cle       `json:"execs"`
 	ParentID    string                `json:"-"`
 	Parent      UpStepper             `json:"-"`
+	Edges       []Edge                `json:"-"`
 	state.Detect
+}
+
+type Edge struct {
+	Start string
+	End   string
 }
 
 func (b Basic) Identifier() string {

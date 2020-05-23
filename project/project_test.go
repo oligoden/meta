@@ -45,7 +45,14 @@ func TestProcess(t *testing.T) {
 		"directories":{
 			"a":{
 				"files":{
-					"aa.ext":{}
+					"aa.ext":{
+						"templates": ["b/ba.ext"]
+					}
+				}
+			},
+			"b":{
+				"files":{
+					"ba.ext":{}
 				}
 			}
 		}
@@ -85,6 +92,10 @@ func TestProcess(t *testing.T) {
 
 	if p.Directories["a"].Hash() == "" {
 		t.Errorf(`expected hash, got empty sting`)
+	}
+
+	if len(p.Edges) == 0 {
+		t.Error("expected edge")
 	}
 }
 

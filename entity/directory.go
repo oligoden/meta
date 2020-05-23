@@ -35,6 +35,10 @@ func (d *Directory) Process(bb func(BranchSetter) (UpStepper, error), m refmap.M
 	d.SourcePath = path(d.SourcePath, d.Source)
 	d.DestinationPath = path(d.DestinationPath, d.Destination)
 
+	if d.Edges == nil {
+		d.Edges = []Edge{}
+	}
+
 	if d.LinkTo == nil {
 		d.LinkTo = []string{}
 	}
@@ -68,7 +72,9 @@ func (d *Directory) Process(bb func(BranchSetter) (UpStepper, error), m refmap.M
 		dir.DestinationPath = filepath.Join(d.DestinationPath, name)
 		dir.Name = name
 		dir.LinkTo = d.LinkTo
+		dir.Edges = d.Edges
 		dir.Process(bb, m)
+		d.Edges = dir.Edges
 	}
 
 	for name, file := range d.Files {
@@ -94,6 +100,14 @@ func (d *Directory) Process(bb func(BranchSetter) (UpStepper, error), m refmap.M
 
 		m.AddRef("file:"+file.Source, file)
 		m.MapRef(file.ParentID, "file:"+file.Source)
+
+		for _, t := range file.Templates {
+			fmt.Println("adding", t, file.Source)
+			d.Edges = append(d.Edges, Edge{
+				Start: "file:" + t,
+				End:   "file:" + file.Source,
+			})
+		}
 
 		for _, lt := range d.LinkTo {
 			m.MapRef("file:"+file.Source, lt)

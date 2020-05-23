@@ -15,15 +15,15 @@ import (
 )
 
 type file struct {
-	Name      string            `json:"name"`
-	Copy      bool              `json:"copy-only"`
-	DontWrite bool              `json:"dont-write"`
-	Source    string            `json:"source"`
-	IgnoreDS  bool              `json:"ignore-default"`
-	Templates map[string]string `json:"templates"`
-	Parent    UpStepper         `json:"-"`
-	ParentID  string            `json:"-"`
-	Branch    DataBranch        `json:"-"`
+	Name      string     `json:"name"`
+	Copy      bool       `json:"copy-only"`
+	DontWrite bool       `json:"dont-write"`
+	Source    string     `json:"source"`
+	IgnoreDS  bool       `json:"ignore-default"`
+	Templates []string   `json:"templates"`
+	Parent    UpStepper  `json:"-"`
+	ParentID  string     `json:"-"`
+	Branch    DataBranch `json:"-"`
 	state.Detect
 }
 
@@ -77,11 +77,12 @@ func (file *file) Perform(ctx context.Context) error {
 		return err
 	}
 
-	f, err := os.OpenFile(dstFileLocation, os.O_RDWR|os.O_CREATE, 0755)
+	f, err := os.OpenFile(dstFileLocation, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		return err
 	}
 
+	// fBuffer := bytes.NewBuffer([]byte{})
 	if parentDS.Copy || file.Copy {
 		r, err := os.Open(srcFileLocation)
 		if err != nil {
@@ -115,11 +116,23 @@ func (file *file) Perform(ctx context.Context) error {
 			}
 		}
 
+		for _, template := range file.Templates {
+			err := parentDS.Template.Prepare(filepath.Join(RootSrcDir, template))
+			if err != nil {
+				return err
+			}
+		}
+
 		err = parentDS.Template.FExecute(f, srcFilename, file.Branch)
 		if err != nil {
 			return fmt.Errorf("error executing template, %w", err)
 		}
 	}
+
+	// err = f.Sync()
+	// if err != nil {
+	// 	return fmt.Errorf("error rewinding file, %w", err)
+	// }
 
 	_, err = f.Seek(0, 0)
 	if err != nil {
@@ -133,6 +146,22 @@ func (file *file) Perform(ctx context.Context) error {
 
 	if err := f.Close(); err != nil {
 		log.Println("error closing file", err)
+	}
+
+	return nil
+}
+
+func lineFilter(f bytes.Buffer) error {
+	for {
+		line, err := f.ReadString('\n')
+		if err != nil {
+			if err == io.EOF && line == "" {
+				break
+			} else if err != io.EOF {
+				return fmt.Errorf("error reading line, %w", err)
+			}
+		}
+
 	}
 
 	return nil
@@ -206,6 +235,8 @@ func lineControl(f *os.File) error {
 	if err != nil {
 		return fmt.Errorf("error writing to file, %w", err)
 	}
+
+	// fmt.Println(buf.String())
 
 	return nil
 }
