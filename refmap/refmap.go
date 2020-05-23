@@ -59,7 +59,7 @@ type Actioner interface {
 
 type Mutator interface {
 	AddRef(string, Actioner)
-	MapRef(string, string, ...uint)
+	MapRef(string, string, ...uint) error
 }
 
 var StatusText = map[uint8]string{
