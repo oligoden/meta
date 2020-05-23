@@ -401,12 +401,13 @@ func (rm refMapStub) AddRef(d string, f refmap.Actioner) {
 	rm.nodes[d] = f
 }
 
-func (rm refMapStub) MapRef(a, b string, o ...uint) {
+func (rm refMapStub) MapRef(a, b string, o ...uint) error {
 	if rm.maps[a] == nil {
 		rm.maps[a] = map[string]bool{
 			b: true,
 		}
-		return
+		return nil
 	}
 	rm.maps[a][b] = true
+	return nil
 }
