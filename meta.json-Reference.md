@@ -170,6 +170,42 @@ in directory `two` is copied while `ccc.ext` is parsed as normal.
 By default the copy field will be false. If set to true, file parsing will be
 skipped.
 
+#### Including files in files (fan-in)
+
+Files can be included into other files. This is also called fan-in sinse one
+file is built from multiple sources. To do this, use the `templates` key in
+the file to specify the files.
+
+```json
+{
+  "directories": {
+    "one": {
+      "files": {
+        "aaa.ext": {
+          "templates": [
+            "one/bbb.ext",
+            "two/ccc.ext"
+          ]
+        },
+        "bbb.ext": {}
+      }
+    },
+    "two": {
+      "files": {
+        "ccc.ext": {}
+      }
+    }
+  }
+}
+```
+
+Files `bbb.ext` and `ccc.ext` can then be included into `aaa.ext`.
+
+```none
+{{template "bbb.ext"}}
+{{template "ccc.ext"}}
+```
+
 ### Execs
 
 Commands can be executed on the generated files. They are specified in the
