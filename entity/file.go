@@ -154,6 +154,8 @@ func lineFilter(r, w *bytes.Buffer) error {
 					break
 				}
 			}
+		} else if strings.HasPrefix(strings.TrimSpace(line), "//xx") {
+			// skip line
 		} else if strings.HasPrefix(strings.TrimSpace(line), "//+++") {
 			for scanner.Scan() {
 				line = scanner.Text()
