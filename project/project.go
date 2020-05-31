@@ -11,6 +11,12 @@ import (
 
 type Project struct {
 	entity.Basic
+	Testing     bool       `json:"testing"`
+	Environment string     `json:"environment"`
+	Repository  Repository `json:"repo"`
+}
+
+type Repository struct {
 }
 
 func Load(f io.Reader) (*Project, error) {

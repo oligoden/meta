@@ -7,7 +7,9 @@ import (
 )
 
 type Branch struct {
-	Project string
+	Project     string
+	Testing     bool
+	Environment string
 	entity.Branch
 }
 
@@ -28,6 +30,8 @@ func BuildBranch(m entity.BranchSetter) (entity.UpStepper, error) {
 			return nil, fmt.Errorf("encountered nil UpStepper")
 		case *Project:
 			b.Project = v.Name
+			b.Testing = v.Testing
+			b.Environment = v.Environment
 			m.SetBranch(b)
 			return ent, nil
 		default:
