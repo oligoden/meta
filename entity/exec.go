@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
 	"time"
 
@@ -11,13 +12,14 @@ import (
 )
 
 type cle struct {
-	Name     string
-	Cmd      []string `json:"cmd"`
-	Timeout  uint     `json:"timeout"`
-	STDOut   *bytes.Buffer
-	STDErr   *bytes.Buffer
-	Parent   UpStepper `json:"-"`
-	ParentID string    `json:"-"`
+	Name        string
+	Cmd         []string          `json:"cmd"`
+	Timeout     uint              `json:"timeout"`
+	Environment map[string]string `json:"env"`
+	STDOut      *bytes.Buffer
+	STDErr      *bytes.Buffer
+	Parent      UpStepper `json:"-"`
+	ParentID    string    `json:"-"`
 	state.Detect
 }
 
@@ -69,5 +71,8 @@ func (e *cle) Perform(ctx context.Context) error {
 	cmd.Dir = RootDstDir
 	cmd.Stdout = e.STDOut
 	cmd.Stderr = e.STDErr
+	for k, v := range e.Environment {
+		cmd.Env = append(os.Environ(), fmt.Sprintf(`%s=%s`, k, v))
+	}
 	return cmd.Run()
 }
