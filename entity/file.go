@@ -82,18 +82,14 @@ func (file *file) Perform(ctx context.Context) error {
 		return err
 	}
 
-	// fBuffer := bytes.NewBuffer([]byte{})
+	contentBuf := &bytes.Buffer{}
 	if parentDS.Copy || file.Copy {
 		r, err := os.Open(srcFileLocation)
 		if err != nil {
 			return err
 		}
 		defer r.Close()
-		_, err = io.Copy(f, r)
-		if err != nil {
-			return err
-		}
-		err = f.Sync()
+		_, err = io.Copy(contentBuf, r)
 		if err != nil {
 			return err
 		}
@@ -123,25 +119,21 @@ func (file *file) Perform(ctx context.Context) error {
 			}
 		}
 
-		err = parentDS.Template.FExecute(f, srcFilename, file.Branch)
+		err = parentDS.Template.FExecute(contentBuf, srcFilename, file.Branch)
 		if err != nil {
 			return fmt.Errorf("error executing template, %w", err)
 		}
 	}
 
-	// err = f.Sync()
-	// if err != nil {
-	// 	return fmt.Errorf("error rewinding file, %w", err)
-	// }
-
-	_, err = f.Seek(0, 0)
-	if err != nil {
-		return fmt.Errorf("error rewinding file, %w", err)
-	}
-
-	err = lineControl(f)
+	commentFilteredBuf := &bytes.Buffer{}
+	err = lineFilter(contentBuf, commentFilteredBuf)
 	if err != nil {
 		return fmt.Errorf("error with line control, %w", err)
+	}
+
+	_, err = commentFilteredBuf.WriteTo(f)
+	if err != nil {
+		return fmt.Errorf("error writing to file, %w", err)
 	}
 
 	if err := f.Close(); err != nil {
@@ -151,92 +143,35 @@ func (file *file) Perform(ctx context.Context) error {
 	return nil
 }
 
-func lineFilter(f bytes.Buffer) error {
-	for {
-		line, err := f.ReadString('\n')
-		if err != nil {
-			if err == io.EOF && line == "" {
-				break
-			} else if err != io.EOF {
-				return fmt.Errorf("error reading line, %w", err)
-			}
-		}
-
-	}
-
-	return nil
-}
-
-func lineControl(f *os.File) error {
-	var buf bytes.Buffer
-	r := bufio.NewReader(f)
-
-	for {
-		line, err := r.ReadString('\n')
-		if err != nil {
-			if err == io.EOF && line == "" {
-				break
-			} else if err != io.EOF {
-				return fmt.Errorf("error reading line, %w", err)
-			}
-		}
-
+func lineFilter(r, w *bytes.Buffer) error {
+	scanner := bufio.NewScanner(r)
+	for scanner.Scan() {
+		line := scanner.Text()
 		if strings.HasPrefix(strings.TrimSpace(line), "//xxx") {
-			for {
-				line, err := r.ReadString('\n')
-				if err != nil {
-					if err == io.EOF && line == "" {
-						break
-					} else if err != io.EOF {
-						return fmt.Errorf("error reading line, %w", err)
-					}
-				}
-
+			for scanner.Scan() {
+				line = scanner.Text()
 				if strings.HasPrefix(strings.TrimSpace(line), "//end") {
 					break
 				}
 			}
 		} else if strings.HasPrefix(strings.TrimSpace(line), "//+++") {
-			for {
-				line, err := r.ReadString('\n')
-				if err != nil {
-					if err == io.EOF && line == "" {
-						break
-					} else if err != io.EOF {
-						return fmt.Errorf("error reading line, %w", err)
-					}
-				}
-
+			for scanner.Scan() {
+				line = scanner.Text()
 				if strings.HasPrefix(strings.TrimSpace(line), "//end") {
 					break
 				}
-
 				if strings.HasPrefix(strings.TrimSpace(line), "//") {
 					line = strings.Replace(line, "//", "", 1)
 				}
-				buf.WriteString(line)
+				fmt.Fprintln(w, line)
 			}
 		} else {
-			buf.WriteString(line)
+			fmt.Fprintln(w, line)
 		}
 	}
-
-	err := f.Truncate(0)
-	if err != nil {
-		return fmt.Errorf("error truncating file, %w", err)
+	if err := scanner.Err(); err != nil {
+		fmt.Fprintln(w, "reading standard input:", err)
 	}
-
-	_, err = f.Seek(0, 0)
-	if err != nil {
-		return fmt.Errorf("error rewinding file, %w", err)
-	}
-
-	_, err = buf.WriteTo(f)
-	if err != nil {
-		return fmt.Errorf("error writing to file, %w", err)
-	}
-
-	// fmt.Println(buf.String())
 
 	return nil
 }

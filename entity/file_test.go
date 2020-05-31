@@ -27,48 +27,48 @@ func TestFilePerforming(t *testing.T) {
 		{
 			desc:    "normal template execution",
 			file:    "aaa.ext",
-			content: "abc aaa.ext",
+			content: "abc aaa.ext\n",
 		},
 		{
 			desc:    "test source property",
 			file:    "aaa.ext",
 			prps:    `"source":"./aaz.ext"`,
-			content: "def",
+			content: "def\n",
 		},
 		{
 			desc:    "test source in sub directory",
 			file:    "aaa.ext",
 			prps:    `"source":"./sub/aax.ext"`,
-			content: "ijk",
+			content: "ijk\n",
 		},
 		{
 			desc:    "test source in parent directory",
 			file:    "aab.ext",
 			prps:    `"source":"aa.ext"`,
-			content: "abc",
+			content: "abc\n",
 		},
 		{
 			desc:    "test removal of .tmpl",
 			file:    "aaa.ext.tmpl",
-			content: "ghi",
+			content: "ghi\n",
 		},
 		{
 			desc:    "test copy only set on file",
 			file:    "aaa.ext",
 			prps:    `"copy-only":true`,
-			content: "abc {{.Filename}}",
+			content: "abc {{.Filename}}\n",
 		},
 		{
 			desc:    "test templates on file",
 			file:    "aa-comp.ext",
 			prps:    `"templates":["a/aa/aa-incl.ext"]`,
-			content: "yul gar jom",
+			content: "yul gar jom\n",
 		},
 		{
 			desc:    "test copy only set on directory",
 			file:    "aaa.ext",
 			dirCopy: true,
-			content: "abc {{.Filename}}",
+			content: "abc {{.Filename}}\n",
 		},
 		{
 			desc:    "test line inclusion control of .go files",
@@ -209,7 +209,7 @@ func TestFileForcing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	exp := "def"
+	exp := "def\n"
 	got := string(content)
 	if exp != got {
 		t.Errorf(`expected "%s", got "%s"`, exp, got)
