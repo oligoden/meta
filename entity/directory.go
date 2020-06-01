@@ -15,8 +15,14 @@ type Directory struct {
 	SourcePath      string           `json:"-"`
 	DestinationPath string           `json:"-"`
 	Template        *Templax         `json:"-"`
-	Copy            bool             `json:"copy-only"`
-	LinkTo          []string         `json:"linkto"`
+
+	// Settings can contain:
+	// - "copy-only" to only copy file
+	// - "parse-dir" to parse all templates in directory
+	// - "comment-filter" to apply comment line filter
+	// - "no-output" to skip file output
+	Settings string   `json:"settings"`
+	LinkTo   []string `json:"linkto"`
 	Basic
 }
 

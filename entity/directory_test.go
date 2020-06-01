@@ -285,8 +285,8 @@ func TestDirectoryProcessingSame(t *testing.T) {
 	m.Directories["a"].Process(entity.BuildBranch, rm)
 	hash := m.Directories["a"].Hash()
 
-	m.Directories["a"].Files["aa.ext"].Copy = true
-	m.Directories["a"].Directories["aa"].Copy = true
+	m.Directories["a"].Files["aa.ext"].Settings = "copy-only"
+	m.Directories["a"].Directories["aa"].Settings = "copy-only"
 	m.Directories["a"].Process(entity.BuildBranch, rm)
 
 	if m.Directories["a"].Hash() != hash {
@@ -326,7 +326,7 @@ func TestDirectoryProcessingUpdate(t *testing.T) {
 	m.Directories["a"].Process(entity.BuildBranch, rm)
 	hash := m.Directories["a"].Hash()
 
-	m.Directories["a"].Copy = true
+	m.Directories["a"].Settings = "copy-only"
 	m.Directories["a"].Process(entity.BuildBranch, rm)
 
 	if m.Directories["a"].Hash() == hash {

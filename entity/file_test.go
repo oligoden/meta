@@ -21,58 +21,59 @@ func TestFilePerforming(t *testing.T) {
 		desc    string
 		file    string
 		prps    string
-		dirCopy bool
+		dirPrps string
 		content string
 	}{
 		{
 			desc:    "normal template execution",
 			file:    "aaa.ext",
-			content: "abc aaa.ext\n",
+			content: "abc aaa.ext",
 		},
 		{
 			desc:    "test source property",
 			file:    "aaa.ext",
 			prps:    `"source":"./aaz.ext"`,
-			content: "def\n",
+			content: "def",
 		},
 		{
 			desc:    "test source in sub directory",
 			file:    "aaa.ext",
 			prps:    `"source":"./sub/aax.ext"`,
-			content: "ijk\n",
+			content: "ijk",
 		},
 		{
 			desc:    "test source in parent directory",
 			file:    "aab.ext",
 			prps:    `"source":"aa.ext"`,
-			content: "abc\n",
+			content: "abc",
 		},
 		{
 			desc:    "test removal of .tmpl",
 			file:    "aaa.ext.tmpl",
-			content: "ghi\n",
+			content: "ghi",
 		},
 		{
 			desc:    "test copy only set on file",
 			file:    "aaa.ext",
-			prps:    `"copy-only":true`,
-			content: "abc {{.Filename}}\n",
+			prps:    `"settings":"copy-only"`,
+			content: "abc {{.Filename}}",
 		},
 		{
 			desc:    "test templates on file",
 			file:    "aa-comp.ext",
 			prps:    `"templates":["a/aa/aa-incl.ext"]`,
-			content: "yul gar jom\n",
+			content: "yul gar jom",
 		},
 		{
 			desc:    "test copy only set on directory",
 			file:    "aaa.ext",
-			dirCopy: true,
-			content: "abc {{.Filename}}\n",
+			dirPrps: `copy-only`,
+			content: "abc {{.Filename}}",
 		},
 		{
 			desc:    "test line inclusion control of .go files",
 			file:    "aaa.go.tmpl",
+			prps:    `"settings":"comment-filter"`,
 			content: "add this\n",
 		},
 	}
@@ -86,7 +87,7 @@ func TestFilePerforming(t *testing.T) {
 					"a": {
 						"directories": {
 							"aa": {
-								"copy-only": %t,
+								"settings": "%s",
 								"files": {
 									"%s": {%s}
 								}
@@ -95,7 +96,7 @@ func TestFilePerforming(t *testing.T) {
 					}
 				}
 			}`
-			str = fmt.Sprintf(str, tC.dirCopy, tC.file, tC.prps)
+			str = fmt.Sprintf(str, tC.dirPrps, tC.file, tC.prps)
 
 			m := &entity.Basic{}
 			err := json.Unmarshal([]byte(str), &m)
@@ -209,7 +210,7 @@ func TestFileForcing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	exp := "def\n"
+	exp := "def"
 	got := string(content)
 	if exp != got {
 		t.Errorf(`expected "%s", got "%s"`, exp, got)

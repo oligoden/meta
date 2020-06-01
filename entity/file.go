@@ -15,15 +15,19 @@ import (
 )
 
 type file struct {
-	Name      string     `json:"name"`
-	Copy      bool       `json:"copy-only"`
-	DontWrite bool       `json:"dont-write"`
-	Source    string     `json:"source"`
-	IgnoreDS  bool       `json:"ignore-default"`
-	Templates []string   `json:"templates"`
-	Parent    UpStepper  `json:"-"`
-	ParentID  string     `json:"-"`
-	Branch    DataBranch `json:"-"`
+	Name      string   `json:"name"`
+	Source    string   `json:"source"`
+	Templates []string `json:"templates"`
+
+	// Settings can contain:
+	// - "copy-only" to only copy file
+	// - "parse-dir" to parse all templates in directory
+	// - "comment-filter" to apply comment line filter
+	// - "no-output" to skip file output
+	Settings string     `json:"settings"`
+	Parent   UpStepper  `json:"-"`
+	ParentID string     `json:"-"`
+	Branch   DataBranch `json:"-"`
 	state.Detect
 }
 
@@ -49,42 +53,42 @@ func (file file) Identifier() string {
 
 func (file *file) Perform(ctx context.Context) error {
 	verboseValue := ctx.Value(ContextKey("verbose")).(int)
-	RootSrcDir := ctx.Value(ContextKey("source")).(string)
-	RootDstDir := ctx.Value(ContextKey("destination")).(string)
+	parentDS := file.Parent.(*Directory)
 
+	if has(parentDS, file, "no-output") {
+		return nil
+	}
+
+	RootSrcDir := ctx.Value(ContextKey("source")).(string)
 	srcFilename := filepath.Base(file.Source)
 	if verboseValue >= 1 {
 		fmt.Println("writing", srcFilename)
 	}
-	dstFilename := strings.TrimSuffix(file.Name, ".tmpl")
-
-	parentDS := file.Parent.(*Directory)
 	defaultSrcDir := parentDS.SourcePath
-	defaultDstDir := parentDS.DestinationPath
-	srcDirLocation := filepath.Join(RootSrcDir, defaultSrcDir)
-	srcDirFullLocation := filepath.Join(RootSrcDir, filepath.Dir(file.Source))
-	dstDirLocation := filepath.Join(RootDstDir, defaultDstDir)
-	srcFileLocation := filepath.Join(srcDirFullLocation, srcFilename)
-	dstFileLocation := filepath.Join(dstDirLocation, dstFilename)
+	srcDirectory := filepath.Join(RootSrcDir, defaultSrcDir)
+	srcDirSpecific := filepath.Join(RootSrcDir, filepath.Dir(file.Source))
+	srcFileSpecific := filepath.Join(srcDirSpecific, srcFilename)
 
-	if _, err := os.Stat(dstFileLocation); err == nil {
+	RootDstDir := ctx.Value(ContextKey("destination")).(string)
+	dstFilename := strings.TrimSuffix(file.Name, ".tmpl")
+	defaultDstDir := parentDS.DestinationPath
+	dstDirectory := filepath.Join(RootDstDir, defaultDstDir)
+	dstFile := filepath.Join(dstDirectory, dstFilename)
+
+	if _, err := os.Stat(dstFile); err == nil {
 		if !ctx.Value(ContextKey("force")).(bool) {
 			return nil
 		}
 	} else if os.IsNotExist(err) {
-		os.MkdirAll(dstDirLocation, os.ModePerm)
+		os.MkdirAll(dstDirectory, os.ModePerm)
 	} else {
 		return err
 	}
 
-	f, err := os.OpenFile(dstFileLocation, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
-	if err != nil {
-		return err
-	}
-
 	contentBuf := &bytes.Buffer{}
-	if parentDS.Copy || file.Copy {
-		r, err := os.Open(srcFileLocation)
+
+	if has(parentDS, file, "copy-only") {
+		r, err := os.Open(srcFileSpecific)
 		if err != nil {
 			return err
 		}
@@ -94,9 +98,17 @@ func (file *file) Perform(ctx context.Context) error {
 			return err
 		}
 	} else {
-		if parentDS.Template == nil || ctx.Value(ContextKey("watching")).(bool) {
+		if parentDS.Template == nil {
 			parentDS.Template = new(Templax)
-			err = parentDS.Template.Prepare(srcDirLocation)
+		}
+
+		err := parentDS.Template.Prepare(srcFileSpecific)
+		if err != nil {
+			return err
+		}
+
+		if has(parentDS, file, "parse-dir") {
+			err = parentDS.Template.Prepare(srcDirectory)
 			if err != nil {
 				if !strings.Contains(err.Error(), "template: pattern matches no files") {
 					return err
@@ -105,12 +117,16 @@ func (file *file) Perform(ctx context.Context) error {
 			}
 		}
 
-		if srcDirLocation != srcDirFullLocation {
-			err := parentDS.Template.Prepare(srcFileLocation)
-			if err != nil {
-				return err
-			}
-		}
+		// if parentDS.Template == nil || ctx.Value(ContextKey("watching")).(bool) {
+		// 	parentDS.Template = new(Templax)
+		// 	err = parentDS.Template.Prepare(srcDirectory)
+		// 	if err != nil {
+		// 		if !strings.Contains(err.Error(), "template: pattern matches no files") {
+		// 			return err
+		// 		}
+		// 		log.Println(err)
+		// 	}
+		// }
 
 		for _, template := range file.Templates {
 			err := parentDS.Template.Prepare(filepath.Join(RootSrcDir, template))
@@ -125,13 +141,23 @@ func (file *file) Perform(ctx context.Context) error {
 		}
 	}
 
-	commentFilteredBuf := &bytes.Buffer{}
-	err = lineFilter(contentBuf, commentFilteredBuf)
-	if err != nil {
-		return fmt.Errorf("error with line control, %w", err)
+	outputBuf := &bytes.Buffer{}
+
+	if has(parentDS, file, "comment-filter") {
+		err := lineFilter(contentBuf, outputBuf)
+		if err != nil {
+			return fmt.Errorf("error with line control, %w", err)
+		}
+	} else {
+		contentBuf.WriteTo(outputBuf)
 	}
 
-	_, err = commentFilteredBuf.WriteTo(f)
+	f, err := os.OpenFile(dstFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+	if err != nil {
+		return err
+	}
+
+	_, err = outputBuf.WriteTo(f)
 	if err != nil {
 		return fmt.Errorf("error writing to file, %w", err)
 	}
@@ -141,6 +167,10 @@ func (file *file) Perform(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func has(d *Directory, f *file, s string) bool {
+	return strings.Contains(d.Settings, s) || strings.Contains(f.Settings, s)
 }
 
 func lineFilter(r, w *bytes.Buffer) error {
