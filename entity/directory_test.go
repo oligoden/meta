@@ -1,6 +1,7 @@
 package entity_test
 
 import (
+	"context"
 	"encoding/json"
 	"path/filepath"
 	"testing"
@@ -126,7 +127,8 @@ func TestDirectoryProcessing(t *testing.T) {
 
 			dir.Source = tC.modDirSource
 			dir.Destination = tC.modDirDestination
-			err := m.Directories["a"].Process(entity.BuildBranch, rm)
+			ctx := context.WithValue(context.Background(), entity.ContextKey("verbose"), 0)
+			err := m.Directories["a"].Process(entity.BuildBranch, rm, ctx)
 			if err != nil {
 				t.Error(err)
 			}
@@ -282,12 +284,13 @@ func TestDirectoryProcessingSame(t *testing.T) {
 	m.Directories["a"].Name = "a"
 	m.Directories["a"].ParentID = "project:name"
 	m.Directories["a"].Parent = m
-	m.Directories["a"].Process(entity.BuildBranch, rm)
+	ctx := context.WithValue(context.Background(), entity.ContextKey("verbose"), 0)
+	m.Directories["a"].Process(entity.BuildBranch, rm, ctx)
 	hash := m.Directories["a"].Hash()
 
 	m.Directories["a"].Files["aa.ext"].Settings = "copy-only"
 	m.Directories["a"].Directories["aa"].Settings = "copy-only"
-	m.Directories["a"].Process(entity.BuildBranch, rm)
+	m.Directories["a"].Process(entity.BuildBranch, rm, ctx)
 
 	if m.Directories["a"].Hash() != hash {
 		t.Error("expected hash to stay the same")
@@ -323,11 +326,12 @@ func TestDirectoryProcessingUpdate(t *testing.T) {
 	m.Directories["a"].Name = "a"
 	m.Directories["a"].ParentID = "project:name"
 	m.Directories["a"].Parent = m
-	m.Directories["a"].Process(entity.BuildBranch, rm)
+	ctx := context.WithValue(context.Background(), entity.ContextKey("verbose"), 0)
+	m.Directories["a"].Process(entity.BuildBranch, rm, ctx)
 	hash := m.Directories["a"].Hash()
 
 	m.Directories["a"].Settings = "copy-only"
-	m.Directories["a"].Process(entity.BuildBranch, rm)
+	m.Directories["a"].Process(entity.BuildBranch, rm, ctx)
 
 	if m.Directories["a"].Hash() == hash {
 		t.Error("expected hash to change")
@@ -364,7 +368,8 @@ func TestDirectoryProcessingLoadUpdate(t *testing.T) {
 	m.Directories["a"].ParentID = "project:name"
 	m.Directories["a"].Parent = m
 
-	m.Directories["a"].Process(entity.BuildBranch, rm)
+	ctx := context.WithValue(context.Background(), entity.ContextKey("verbose"), 0)
+	m.Directories["a"].Process(entity.BuildBranch, rm, ctx)
 	hash := m.Directories["a"].Hash()
 
 	str = `{
@@ -385,7 +390,7 @@ func TestDirectoryProcessingLoadUpdate(t *testing.T) {
 		}
 	}`
 	json.Unmarshal([]byte(str), &m)
-	m.Directories["a"].Process(entity.BuildBranch, rm)
+	m.Directories["a"].Process(entity.BuildBranch, rm, ctx)
 
 	if m.Directories["a"].Hash() == hash {
 		t.Error("expected hash to change")

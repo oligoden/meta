@@ -22,4 +22,9 @@ func TestReadChanged(t *testing.T) {
 	if len(rsp) != 3 {
 		fmt.Println("expected 3 changed refs, got", len(rsp))
 	}
+
+	rspNodes := rm.ParentFiles("b")
+	if len(rspNodes) != 2 {
+		fmt.Println("expected 2 changed refs, got", len(rspNodes))
+	}
 }

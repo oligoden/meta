@@ -1,6 +1,7 @@
 package entity
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -14,7 +15,6 @@ type Directory struct {
 	Files           map[string]*file `json:"files"`
 	SourcePath      string           `json:"-"`
 	DestinationPath string           `json:"-"`
-	Template        *Templax         `json:"-"`
 
 	// Settings can contain:
 	// - "copy-only" to only copy file
@@ -37,7 +37,8 @@ func (d *Directory) calculateHash() error {
 	return nil
 }
 
-func (d *Directory) Process(bb func(BranchSetter) (UpStepper, error), m refmap.Mutator) error {
+func (d *Directory) Process(bb func(BranchSetter) (UpStepper, error), m refmap.Mutator, ctx context.Context) error {
+	verboseValue := ctx.Value(ContextKey("verbose")).(int)
 	d.SourcePath = path(d.SourcePath, d.Source)
 	d.DestinationPath = path(d.DestinationPath, d.Destination)
 
@@ -79,7 +80,7 @@ func (d *Directory) Process(bb func(BranchSetter) (UpStepper, error), m refmap.M
 		dir.Name = name
 		dir.LinkTo = d.LinkTo
 		dir.Edges = d.Edges
-		dir.Process(bb, m)
+		dir.Process(bb, m, ctx)
 		d.Edges = dir.Edges
 	}
 
@@ -108,7 +109,10 @@ func (d *Directory) Process(bb func(BranchSetter) (UpStepper, error), m refmap.M
 		m.MapRef(file.ParentID, "file:"+file.Source)
 
 		for _, t := range file.Templates {
-			fmt.Println("adding", t, file.Source)
+			if verboseValue >= 3 {
+				fmt.Println("linking", t, "to", file.Source)
+			}
+
 			d.Edges = append(d.Edges, Edge{
 				Start: "file:" + t,
 				End:   "file:" + file.Source,

@@ -114,19 +114,20 @@ func TestFilePerforming(t *testing.T) {
 			rm := refmap.Start()
 			rm.AddRef("project:name", m)
 
-			dir.Process(entity.BuildBranch, rm)
-			file, ok := dir.Directories["aa"].Files[tC.file]
-			if !ok {
-				t.Fatalf(`no file "%s"`, tC.file)
-			}
-
 			ctx := context.Background()
 			ctx = context.WithValue(ctx, entity.ContextKey("source"), "testing/work")
 			ctx = context.WithValue(ctx, entity.ContextKey("destination"), "testing")
 			ctx = context.WithValue(ctx, entity.ContextKey("watching"), false)
 			ctx = context.WithValue(ctx, entity.ContextKey("force"), true)
 			ctx = context.WithValue(ctx, entity.ContextKey("verbose"), 0)
-			err = file.Perform(ctx)
+
+			dir.Process(entity.BuildBranch, rm, ctx)
+			file, ok := dir.Directories["aa"].Files[tC.file]
+			if !ok {
+				t.Fatalf(`no file "%s"`, tC.file)
+			}
+
+			err = file.Perform(rm, ctx)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -181,10 +182,6 @@ func TestFileForcing(t *testing.T) {
 
 	rm := refmap.Start()
 	rm.AddRef("project:name", m)
-	err = dir.Process(entity.BuildBranch, rm)
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, entity.ContextKey("source"), "testing/work")
@@ -192,6 +189,11 @@ func TestFileForcing(t *testing.T) {
 	ctx = context.WithValue(ctx, entity.ContextKey("watching"), false)
 	ctx = context.WithValue(ctx, entity.ContextKey("force"), true)
 	ctx = context.WithValue(ctx, entity.ContextKey("verbose"), 0)
+
+	err = dir.Process(entity.BuildBranch, rm, ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	f1, _ := os.Create("testing/a/aa/aab.ext")
 	f1.WriteString("abc")
@@ -201,7 +203,7 @@ func TestFileForcing(t *testing.T) {
 	f1.WriteString("def")
 	f1.Close()
 
-	err = dir.Directories["aa"].Files["aab.ext"].Perform(ctx)
+	err = dir.Directories["aa"].Files["aab.ext"].Perform(rm, ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -251,10 +253,6 @@ func TestFileNotForcing(t *testing.T) {
 
 	rm := refmap.Start()
 	rm.AddRef("project:name", m)
-	err = dir.Process(entity.BuildBranch, rm)
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, entity.ContextKey("source"), "testing/work")
@@ -262,6 +260,11 @@ func TestFileNotForcing(t *testing.T) {
 	ctx = context.WithValue(ctx, entity.ContextKey("watching"), false)
 	ctx = context.WithValue(ctx, entity.ContextKey("force"), false)
 	ctx = context.WithValue(ctx, entity.ContextKey("verbose"), 0)
+
+	err = dir.Process(entity.BuildBranch, rm, ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	f1, _ := os.Create("testing/a/aa/aab.ext")
 	f1.WriteString("abc")
@@ -271,7 +274,7 @@ func TestFileNotForcing(t *testing.T) {
 	f1.WriteString("def")
 	f1.Close()
 
-	err = dir.Directories["aa"].Files["aab.ext"].Perform(ctx)
+	err = dir.Directories["aa"].Files["aab.ext"].Perform(rm, ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

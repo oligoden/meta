@@ -8,10 +8,10 @@ import (
 )
 
 type Store struct {
-	Adds    chan *addOp
-	Maps    chan *mapOp
-	Sets    chan *SetOp
-	Changed chan *changedOp
+	Adds  chan *addOp
+	Maps  chan *mapOp
+	Sets  chan *SetOp
+	Nodes chan *nodesOp
 	// Removed chan *RemovedOp
 	refs  map[string]Actioner
 	graph *graph.Graph
@@ -22,7 +22,7 @@ func Start() *Store {
 	s.Adds = make(chan *addOp)
 	s.Maps = make(chan *mapOp)
 	s.Sets = make(chan *SetOp)
-	s.Changed = make(chan *changedOp)
+	s.Nodes = make(chan *nodesOp)
 	// 	// s.Removed = make(chan *RemovedOp)
 
 	s.refs = make(map[string]Actioner)
@@ -37,8 +37,12 @@ func Start() *Store {
 				a.rsp <- s.graph.Link(a.start, a.end)
 			case a := <-s.Sets:
 				a.handle(s.refs, s.graph)
-			case changed := <-s.Changed:
-				changed.handle(s.refs, s.graph)
+			case nodes := <-s.Nodes:
+				if nodes.selection == "parents" {
+					nodes.parents(nodes.node, s.refs, s.graph)
+					break
+				}
+				nodes.topological(s.refs, s.graph)
 				// case removed := <-s.Removed:
 				// 	removed.handle(s.core.refs)
 			}
@@ -50,11 +54,15 @@ func Start() *Store {
 
 // Actioner performs actions on the data provided.
 type Actioner interface {
-	Perform(context.Context) error
+	Perform(Grapher, context.Context) error
 	State(...uint8) uint8
 	Hash() string
 	Identifier() string
 	// Remove(Config)
+}
+
+type Grapher interface {
+	ParentFiles(string) []string
 }
 
 type Mutator interface {

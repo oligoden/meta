@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/oligoden/meta/entity/state"
+	"github.com/oligoden/meta/refmap"
 )
 
 type cle struct {
@@ -51,7 +52,7 @@ func (e *cle) Process() error {
 	return nil
 }
 
-func (e *cle) Perform(ctx context.Context) error {
+func (e *cle) Perform(rm refmap.Grapher, ctx context.Context) error {
 	RootDstDir := ctx.Value(ContextKey("destination")).(string)
 
 	if e.Timeout == 0 {

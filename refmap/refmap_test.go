@@ -70,7 +70,7 @@ func (testRef) Identifier() string {
 	return ""
 }
 
-func (testRef) Perform(c context.Context) error {
+func (testRef) Perform(rm refmap.Grapher, c context.Context) error {
 	return nil
 }
 

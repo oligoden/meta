@@ -1,6 +1,7 @@
 package project
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 
@@ -39,7 +40,7 @@ func (p *Project) Load(f io.Reader) (*Project, error) {
 	return p, nil
 }
 
-func (p *Project) Process(bb func(entity.BranchSetter) (entity.UpStepper, error), m refmap.Mutator) error {
+func (p *Project) Process(bb func(entity.BranchSetter) (entity.UpStepper, error), m refmap.Mutator, ctx context.Context) error {
 	p.Edges = []entity.Edge{}
 
 	err := p.calculateHash()
@@ -68,7 +69,7 @@ func (p *Project) Process(bb func(entity.BranchSetter) (entity.UpStepper, error)
 		dir.DestinationPath = name
 		dir.LinkTo = cleLinks
 		dir.Edges = p.Edges
-		err := dir.Process(bb, m)
+		err := dir.Process(bb, m, ctx)
 		p.Edges = dir.Edges
 		if err != nil {
 			return err

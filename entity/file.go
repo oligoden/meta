@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/oligoden/meta/entity/state"
+	"github.com/oligoden/meta/refmap"
 )
 
 type file struct {
@@ -25,6 +26,7 @@ type file struct {
 	// - "comment-filter" to apply comment line filter
 	// - "no-output" to skip file output
 	Settings string     `json:"settings"`
+	Template *Templax   `json:"-"`
 	Parent   UpStepper  `json:"-"`
 	ParentID string     `json:"-"`
 	Branch   DataBranch `json:"-"`
@@ -51,7 +53,7 @@ func (file file) Identifier() string {
 	return file.Source
 }
 
-func (file *file) Perform(ctx context.Context) error {
+func (file *file) Perform(rm refmap.Grapher, ctx context.Context) error {
 	verboseValue := ctx.Value(ContextKey("verbose")).(int)
 	parentDS := file.Parent.(*Directory)
 
@@ -98,17 +100,17 @@ func (file *file) Perform(ctx context.Context) error {
 			return err
 		}
 	} else {
-		if parentDS.Template == nil {
-			parentDS.Template = new(Templax)
+		if file.Template == nil {
+			file.Template = new(Templax)
 		}
 
-		err := parentDS.Template.Prepare(srcFileSpecific)
+		err := file.Template.Prepare(srcFileSpecific)
 		if err != nil {
 			return err
 		}
 
 		if has(parentDS, file, "parse-dir") {
-			err = parentDS.Template.Prepare(srcDirectory)
+			err = file.Template.Prepare(srcDirectory)
 			if err != nil {
 				if !strings.Contains(err.Error(), "template: pattern matches no files") {
 					return err
@@ -117,25 +119,22 @@ func (file *file) Perform(ctx context.Context) error {
 			}
 		}
 
-		// if parentDS.Template == nil || ctx.Value(ContextKey("watching")).(bool) {
-		// 	parentDS.Template = new(Templax)
-		// 	err = parentDS.Template.Prepare(srcDirectory)
-		// 	if err != nil {
-		// 		if !strings.Contains(err.Error(), "template: pattern matches no files") {
-		// 			return err
-		// 		}
-		// 		log.Println(err)
-		// 	}
-		// }
-
 		for _, template := range file.Templates {
-			err := parentDS.Template.Prepare(filepath.Join(RootSrcDir, template))
+			err := file.Template.Prepare(filepath.Join(RootSrcDir, template))
 			if err != nil {
 				return err
 			}
+
+			for _, t := range rm.ParentFiles("file:" + template) {
+				f := strings.TrimPrefix(t, "file:")
+				err := file.Template.Prepare(filepath.Join(RootSrcDir, f))
+				if err != nil {
+					return err
+				}
+			}
 		}
 
-		err = parentDS.Template.FExecute(contentBuf, srcFilename, file.Branch)
+		err = file.Template.FExecute(contentBuf, srcFilename, file.Branch)
 		if err != nil {
 			return fmt.Errorf("error executing template, %w", err)
 		}

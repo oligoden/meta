@@ -72,8 +72,6 @@ func TestExecPerforming(t *testing.T) {
 
 			rm := refmap.Start()
 			rm.AddRef("project:name", m)
-			dir.Process(entity.BuildBranch, rm)
-			rm.Evaluate()
 
 			ctx := context.Background()
 			ctx = context.WithValue(ctx, entity.ContextKey("source"), "testing/work")
@@ -81,11 +79,14 @@ func TestExecPerforming(t *testing.T) {
 			ctx = context.WithValue(ctx, entity.ContextKey("watching"), false)
 			ctx = context.WithValue(ctx, entity.ContextKey("force"), false)
 			ctx = context.WithValue(ctx, entity.ContextKey("verbose"), 0)
-			err = dir.Files["aa.ext"].Perform(ctx)
+			dir.Process(entity.BuildBranch, rm, ctx)
+			rm.Evaluate()
+
+			err = dir.Files["aa.ext"].Perform(rm, ctx)
 			if err != nil {
 				t.Fatal(err)
 			}
-			err = dir.Execs["cp"].Perform(ctx)
+			err = dir.Execs["cp"].Perform(rm, ctx)
 			if err != nil {
 				t.Fatal(err)
 			}

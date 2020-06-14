@@ -10,6 +10,7 @@ import (
 
 	"github.com/jinzhu/inflection"
 	"github.com/oligoden/meta/entity/state"
+	"github.com/oligoden/meta/refmap"
 )
 
 type ContextKey string
@@ -33,7 +34,7 @@ func (b Basic) Identifier() string {
 	return b.Name
 }
 
-func (Basic) Perform(context.Context) error {
+func (Basic) Perform(refmap.Grapher, context.Context) error {
 	return nil
 }
 
