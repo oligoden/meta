@@ -2,6 +2,7 @@ package project_test
 
 import (
 	"bytes"
+	"context"
 	"testing"
 
 	"github.com/oligoden/meta/entity"
@@ -63,7 +64,8 @@ func TestProcess(t *testing.T) {
 	}
 
 	rm := refmap.Start()
-	err = p.Process(project.BuildBranch, rm)
+	ctx := context.WithValue(context.Background(), entity.ContextKey("verbose"), 0)
+	err = p.Process(project.BuildBranch, rm, ctx)
 	if err != nil {
 		t.Error(err)
 	}
@@ -112,7 +114,8 @@ func TestProcessCheckHashChange(t *testing.T) {
 	}
 
 	rm := refmap.Start()
-	err = p.Process(entity.BuildBranch, rm)
+	ctx := context.WithValue(context.Background(), entity.ContextKey("verbose"), 0)
+	err = p.Process(entity.BuildBranch, rm, ctx)
 	if err != nil {
 		t.Error(err)
 	}
@@ -131,7 +134,7 @@ func TestProcessCheckHashChange(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = p.Process(entity.BuildBranch, rm)
+	err = p.Process(entity.BuildBranch, rm, ctx)
 	if err != nil {
 		t.Error(err)
 	}

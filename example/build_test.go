@@ -26,22 +26,22 @@ func ExampleBuild() {
 		return
 	}
 
-	rm := refmap.Start()
-	err = p.Process(project.BuildBranch, rm)
-	if err != nil {
-		fmt.Println("error processing project,", err)
-		return
-	}
-	rm.Evaluate()
-
 	ctx := context.WithValue(context.Background(), entity.ContextKey("source"), "work")
 	ctx = context.WithValue(ctx, entity.ContextKey("destination"), ".")
 	ctx = context.WithValue(ctx, entity.ContextKey("force"), true)
 	ctx = context.WithValue(ctx, entity.ContextKey("watch"), false)
 	ctx = context.WithValue(ctx, entity.ContextKey("verbose"), 0)
 
+	rm := refmap.Start()
+	err = p.Process(project.BuildBranch, rm, ctx)
+	if err != nil {
+		fmt.Println("error processing project,", err)
+		return
+	}
+	rm.Evaluate()
+
 	for _, ref := range rm.ChangedFiles() {
-		err = ref.Perform(ctx)
+		err = ref.Perform(rm, ctx)
 		if err != nil {
 			fmt.Println("error performing file actions,", err)
 			return
@@ -49,7 +49,7 @@ func ExampleBuild() {
 	}
 
 	for _, ref := range rm.ChangedExecs() {
-		err = ref.Perform(ctx)
+		err = ref.Perform(rm, ctx)
 		if err != nil {
 			fmt.Println("error performing exec actions,", err)
 			return
