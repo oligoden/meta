@@ -176,14 +176,25 @@ func lineFilter(r, w *bytes.Buffer) error {
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
 		line := scanner.Text()
-		if strings.HasPrefix(strings.TrimSpace(line), "//xxx") {
+		if strings.HasPrefix(strings.TrimSpace(line), "//---") {
 			for scanner.Scan() {
 				line = scanner.Text()
 				if strings.HasPrefix(strings.TrimSpace(line), "//end") {
 					break
 				}
 			}
-		} else if strings.HasPrefix(strings.TrimSpace(line), "//xx") {
+		} else if strings.HasPrefix(strings.TrimSpace(line), "//xxx") {
+			// depreciated
+			for scanner.Scan() {
+				line = scanner.Text()
+				if strings.HasPrefix(strings.TrimSpace(line), "//end") {
+					break
+				}
+			}
+		} else if strings.Contains(strings.TrimSpace(line), "//-") {
+			// skip line
+		} else if strings.Contains(strings.TrimSpace(line), "//xx") {
+			// depreciated
 			// skip line
 		} else if strings.HasPrefix(strings.TrimSpace(line), "//+++") {
 			for scanner.Scan() {
