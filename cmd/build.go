@@ -99,7 +99,7 @@ Use the force flag (-f) to force rebuilding of all files.`,
 		for _, ref := range rm.ChangedFiles() {
 			err = ref.Perform(rm, ctx)
 			if err != nil {
-				fmt.Println("error performing file actions,", err)
+				fmt.Println("error performing file actions on", ref.Identifier(), err)
 				return
 			}
 		}

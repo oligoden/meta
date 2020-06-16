@@ -130,12 +130,13 @@ var watchCmd = &cobra.Command{
 
 		fmt.Println("Running execs...")
 		for _, ref := range rm.ChangedExecs() {
-			fmt.Println(ref.Identifier())
 			err = ref.Perform(rm, ctx)
 			if err != nil {
 				fmt.Println("error performing exec actions,", err)
+				fmt.Println(ref.Identifier())
 				return
 			}
+			fmt.Println(ref.Identifier())
 		}
 
 		rm.Finish()
@@ -234,6 +235,7 @@ var watchCmd = &cobra.Command{
 						err = ref.Perform(rm, ctx)
 						if err != nil {
 							fmt.Println("error performing exec actions,", err)
+							fmt.Println(ref.Identifier())
 							break
 						}
 						fmt.Println(ref.Identifier())
