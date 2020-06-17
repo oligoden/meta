@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/fsnotify/fsnotify"
 	"github.com/oligoden/meta/refmap"
 )
 
@@ -44,6 +45,9 @@ func (d *Directory) Process(bb func(BranchSetter) (UpStepper, error), m refmap.M
 	d.DestinationPath = path(d.DestinationPath, d.Destination)
 
 	if d.Import != "" {
+		rootSrcDir := ctx.Value(ContextKey("source")).(string)
+		metafile := filepath.Join(rootSrcDir, d.SourcePath, "/meta.json")
+
 		f, err := os.Open("work/" + d.SourcePath + "/meta.json")
 		if err != nil {
 			fmt.Println(err)
@@ -57,12 +61,17 @@ func (d *Directory) Process(bb func(BranchSetter) (UpStepper, error), m refmap.M
 			return err
 		}
 
+		if metfileWatcher, ok := ctx.Value(ContextKey("watcher")).(*fsnotify.Watcher); ok {
+			metfileWatcher.Add(metafile)
+		}
+
 		if d.Import == "Directories" {
 			if d.Directories == nil {
 				d.Directories = map[string]*Directory{}
 			}
 			for k, v := range p.Directories {
 				d.Directories[k] = v
+				updatePaths(d.Directories[k], d.SourcePath)
 			}
 		}
 	}
@@ -82,7 +91,10 @@ func (d *Directory) Process(bb func(BranchSetter) (UpStepper, error), m refmap.M
 
 	refName := fmt.Sprintf("dir:%s:%s", d.SourcePath, d.Name)
 	m.AddRef(refName, d)
-	m.MapRef(d.ParentID, refName)
+	err = m.MapRef(d.ParentID, refName)
+	if err != nil {
+		return err
+	}
 
 	for name, e := range d.Execs {
 		e.Name = name
@@ -93,7 +105,10 @@ func (d *Directory) Process(bb func(BranchSetter) (UpStepper, error), m refmap.M
 			return err
 		}
 		m.AddRef("exec:"+name, e)
-		m.MapRef(refName, "exec:"+name)
+		err = m.MapRef(refName, "exec:"+name)
+		if err != nil {
+			return err
+		}
 		d.LinkTo = append(d.LinkTo, "exec:"+name)
 	}
 
@@ -131,7 +146,10 @@ func (d *Directory) Process(bb func(BranchSetter) (UpStepper, error), m refmap.M
 		}
 
 		m.AddRef("file:"+file.Source, file)
-		m.MapRef(file.ParentID, "file:"+file.Source)
+		err = m.MapRef(file.ParentID, "file:"+file.Source)
+		if err != nil {
+			return err
+		}
 
 		for _, t := range file.Templates {
 			if verboseValue >= 3 {
@@ -145,7 +163,10 @@ func (d *Directory) Process(bb func(BranchSetter) (UpStepper, error), m refmap.M
 		}
 
 		for _, lt := range d.LinkTo {
-			m.MapRef("file:"+file.Source, lt)
+			err = m.MapRef("file:"+file.Source, lt)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -160,4 +181,16 @@ func path(path, modify string) string {
 		return strings.TrimPrefix(modify, "/")
 	}
 	return filepath.Join(path, modify)
+}
+
+func updatePaths(d *Directory, p string) {
+	for i, file := range d.Files {
+		for j, t := range file.Templates {
+			d.Files[i].Templates[j] = filepath.Join(p, t)
+		}
+	}
+
+	for k := range d.Directories {
+		updatePaths(d.Directories[k], p)
+	}
 }

@@ -103,18 +103,6 @@ var watchCmd = &cobra.Command{
 			fmt.Println("Processing configuration...")
 		}
 
-		rm := refmap.Start()
-		err = p.Process(entity.BuildProjectBranch, rm, ctx)
-		if err != nil {
-			fmt.Println("error processing project", err)
-			return
-		}
-		rm.Evaluate()
-
-		if verboseValue >= 1 {
-			fmt.Println("Building")
-		}
-
 		fileWatcher, err := fsnotify.NewWatcher()
 		if err != nil {
 			fmt.Println("error starting file watcher", err)
@@ -129,6 +117,20 @@ var watchCmd = &cobra.Command{
 		}
 		defer metafileWatcher.Close()
 		metafileWatcher.Add(metaFileName)
+
+		ctx = context.WithValue(ctx, entity.ContextKey("watcher"), metafileWatcher)
+
+		rm := refmap.Start()
+		err = p.Process(entity.BuildProjectBranch, rm, ctx)
+		if err != nil {
+			fmt.Println("error processing project", err)
+			return
+		}
+		rm.Evaluate()
+
+		if verboseValue >= 1 {
+			fmt.Println("Building project...")
+		}
 
 		fmt.Println("Rebuilding files...")
 		for _, ref := range rm.ChangedFiles() {

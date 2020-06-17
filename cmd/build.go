@@ -109,7 +109,7 @@ Use the force flag (-f) to force rebuilding of all files.`,
 		rm.Evaluate()
 
 		if verboseValue >= 1 {
-			fmt.Println("Building")
+			fmt.Println("Building project...")
 		}
 
 		for _, ref := range rm.ChangedFiles() {

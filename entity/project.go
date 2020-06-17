@@ -57,7 +57,10 @@ func (p *Project) Process(bb func(BranchSetter) (UpStepper, error), m refmap.Mut
 		e.Process()
 
 		m.AddRef("exec:"+name, e)
-		m.MapRef("project", "exec:"+name)
+		err = m.MapRef("project", "exec:"+name)
+		if err != nil {
+			return err
+		}
 		cleLinks = append(cleLinks, "exec:"+name)
 	}
 
@@ -77,7 +80,10 @@ func (p *Project) Process(bb func(BranchSetter) (UpStepper, error), m refmap.Mut
 	}
 
 	for _, e := range p.Edges {
-		m.MapRef(e.Start, e.End)
+		err = m.MapRef(e.Start, e.End)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
