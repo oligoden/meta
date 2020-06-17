@@ -27,7 +27,6 @@ import (
 	"os"
 
 	"github.com/oligoden/meta/entity"
-	"github.com/oligoden/meta/project"
 	"github.com/oligoden/meta/refmap"
 
 	"github.com/spf13/cobra"
@@ -49,27 +48,8 @@ Use the force flag (-f) to force rebuilding of all files.`,
 
 		verboseValue, _ := cmd.Flags().GetInt("verbose")
 		if verboseValue >= 1 {
-			fmt.Println("Processing")
+			fmt.Println("Loading metafile...")
 		}
-
-		metaFolderName, err := cmd.Flags().GetString("metafolder")
-		if err != nil {
-			fmt.Println("error getting meta folder name", err)
-			return
-		}
-
-		destinationLocation, err := cmd.Flags().GetString("destination")
-		if err != nil {
-			fmt.Println("error getting destination location", err)
-			return
-		}
-		forceFlag, _ := cmd.Flags().GetBool("force")
-		ctx := context.WithValue(context.Background(), entity.ContextKey("source"), metaFolderName)
-		ctx = context.WithValue(ctx, entity.ContextKey("destination"), destinationLocation)
-		ctx = context.WithValue(ctx, entity.ContextKey("force"), forceFlag)
-		ctx = context.WithValue(ctx, entity.ContextKey("watching"), false)
-		ctx = context.WithValue(ctx, entity.ContextKey("first-run"), true)
-		ctx = context.WithValue(ctx, entity.ContextKey("verbose"), verboseValue)
 
 		f, err := os.Open(metaFileName)
 		if err != nil {
@@ -78,14 +58,50 @@ Use the force flag (-f) to force rebuilding of all files.`,
 		}
 		defer f.Close()
 
-		p, err := project.Load(f)
+		p, err := entity.Load(f)
 		if err != nil {
 			fmt.Println("error loading file", metaFileName, err)
 			return
 		}
 
+		workLocation, err := cmd.Flags().GetString("work")
+		if err != nil {
+			fmt.Println("error getting meta folder name", err)
+			return
+		}
+
+		if workLocation == "" {
+			workLocation = p.WorkLocation
+		}
+
+		if workLocation == "" {
+			workLocation = "work"
+		}
+
+		destinationLocation, err := cmd.Flags().GetString("dest")
+		if err != nil {
+			fmt.Println("error getting destination location", err)
+			return
+		}
+
+		if destinationLocation == "" {
+			destinationLocation = p.DestLocation
+		}
+
+		forceFlag, _ := cmd.Flags().GetBool("force")
+		ctx := context.WithValue(context.Background(), entity.ContextKey("source"), workLocation)
+		ctx = context.WithValue(ctx, entity.ContextKey("destination"), destinationLocation)
+		ctx = context.WithValue(ctx, entity.ContextKey("force"), forceFlag)
+		ctx = context.WithValue(ctx, entity.ContextKey("watching"), false)
+		ctx = context.WithValue(ctx, entity.ContextKey("startup"), true)
+		ctx = context.WithValue(ctx, entity.ContextKey("verbose"), verboseValue)
+
+		if verboseValue >= 1 {
+			fmt.Println("Processing configuration...")
+		}
+
 		rm := refmap.Start()
-		err = p.Process(project.BuildBranch, rm, ctx)
+		err = p.Process(entity.BuildProjectBranch, rm, ctx)
 		if err != nil {
 			fmt.Println("error processing project", err)
 			return
@@ -119,8 +135,8 @@ func init() {
 	rootCmd.AddCommand(buildCmd)
 
 	buildCmd.Flags().String("metafile", "meta.json", "The meta file")
-	buildCmd.Flags().String("destination", "", "The destination folder")
-	buildCmd.Flags().String("metafolder", "work", "The meta folder")
+	buildCmd.Flags().String("dest", "", "The destination directory")
+	buildCmd.Flags().String("work", "", "The meta work directory")
 	buildCmd.Flags().BoolP("force", "f", false, "Force rebuilding of existing files")
 	buildCmd.Flags().IntP("verbose", "v", 0, "Set verbosity to 1, 2 or 3")
 }

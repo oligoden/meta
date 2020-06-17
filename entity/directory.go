@@ -3,6 +3,7 @@ package entity
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -41,6 +42,30 @@ func (d *Directory) Process(bb func(BranchSetter) (UpStepper, error), m refmap.M
 	verboseValue := ctx.Value(ContextKey("verbose")).(int)
 	d.SourcePath = path(d.SourcePath, d.Source)
 	d.DestinationPath = path(d.DestinationPath, d.Destination)
+
+	if d.Import != "" {
+		f, err := os.Open("work/" + d.SourcePath + "/meta.json")
+		if err != nil {
+			fmt.Println(err)
+			return err
+		}
+		defer f.Close()
+
+		p, err := Load(f)
+		if err != nil {
+			fmt.Println(err)
+			return err
+		}
+
+		if d.Import == "Directories" {
+			if d.Directories == nil {
+				d.Directories = map[string]*Directory{}
+			}
+			for k, v := range p.Directories {
+				d.Directories[k] = v
+			}
+		}
+	}
 
 	if d.Edges == nil {
 		d.Edges = []Edge{}

@@ -19,6 +19,7 @@ type Basic struct {
 	Name        string                `json:"name"`
 	Directories map[string]*Directory `json:"directories"`
 	Execs       map[string]*cle       `json:"execs"`
+	Import      string                `json:"import"`
 	ParentID    string                `json:"-"`
 	Parent      UpStepper             `json:"-"`
 	Edges       []Edge                `json:"-"`
