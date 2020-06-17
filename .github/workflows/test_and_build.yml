@@ -19,7 +19,6 @@ jobs:
       run: go get -v -t -d ./...
     - name: Run tests
       run: |
-        go test -cover github.com/oligoden/meta/project
         go test -cover github.com/oligoden/meta/entity
         go test -cover github.com/oligoden/meta/entity/state
         go test -cover github.com/oligoden/meta/refmap
