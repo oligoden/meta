@@ -109,6 +109,8 @@ func (d *Directory) Process(bb func(BranchSetter) (UpStepper, error), m refmap.M
 		m.MapRef(file.ParentID, "file:"+file.Source)
 
 		for _, t := range file.Templates {
+			t = filepath.Join(strings.Split(t, "/")...)
+
 			if verboseValue >= 3 {
 				fmt.Println("linking", t, "to", file.Source)
 			}

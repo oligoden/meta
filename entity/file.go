@@ -120,6 +120,8 @@ func (file *file) Perform(rm refmap.Grapher, ctx context.Context) error {
 		}
 
 		for _, template := range file.Templates {
+			template = filepath.Join(strings.Split(template, "/")...)
+
 			err := file.Template.Prepare(filepath.Join(RootSrcDir, template))
 			if err != nil {
 				return err
