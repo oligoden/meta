@@ -1,4 +1,4 @@
-package project_test
+package entity_test
 
 import (
 	"bytes"
@@ -7,13 +7,11 @@ import (
 
 	"github.com/oligoden/meta/entity"
 	"github.com/oligoden/meta/refmap"
-
-	"github.com/oligoden/meta/project"
 )
 
 func TestLoad(t *testing.T) {
 	f := bytes.NewBufferString(`{bad json}`)
-	_, err := project.Load(f)
+	_, err := entity.Load(f)
 	if err == nil {
 		t.Error("expected error")
 	}
@@ -24,7 +22,7 @@ func TestLoad(t *testing.T) {
 			"a":{}
 		}
 	}`)
-	p, err := project.Load(f)
+	p, err := entity.Load(f)
 	if err != nil {
 		t.Error(err)
 	}
@@ -58,14 +56,14 @@ func TestProcess(t *testing.T) {
 			}
 		}
 	}`)
-	p, err := project.Load(f)
+	p, err := entity.Load(f)
 	if err != nil {
 		t.Error(err)
 	}
 
 	rm := refmap.Start()
 	ctx := context.WithValue(context.Background(), entity.ContextKey("verbose"), 0)
-	err = p.Process(project.BuildBranch, rm, ctx)
+	err = p.Process(entity.BuildBranch, rm, ctx)
 	if err != nil {
 		t.Error(err)
 	}
@@ -88,7 +86,7 @@ func TestProcess(t *testing.T) {
 		t.Errorf(`expected "%s", got "%s"`, exp, got)
 	}
 
-	if _, ok := p.Directories["a"].Parent.(*project.Project); !ok {
+	if _, ok := p.Directories["a"].Parent.(*entity.Project); !ok {
 		t.Error("expected parent to be project, got")
 	}
 
@@ -108,7 +106,7 @@ func TestProcessCheckHashChange(t *testing.T) {
 			"a":{}
 		}
 	}`)
-	p, err := project.Load(f)
+	p, err := entity.Load(f)
 	if err != nil {
 		t.Error(err)
 	}
@@ -129,7 +127,7 @@ func TestProcessCheckHashChange(t *testing.T) {
 			"b":{}
 		}
 	}`)
-	p, err = project.Load(f)
+	p, err = entity.Load(f)
 	if err != nil {
 		t.Error(err)
 	}

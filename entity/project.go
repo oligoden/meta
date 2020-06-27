@@ -1,4 +1,4 @@
-package project
+package entity
 
 import (
 	"context"
@@ -6,15 +6,15 @@ import (
 	"io"
 
 	"github.com/oligoden/meta/refmap"
-
-	"github.com/oligoden/meta/entity"
 )
 
 type Project struct {
-	entity.Basic
-	Testing     bool       `json:"testing"`
-	Environment string     `json:"environment"`
-	Repository  Repository `json:"repo"`
+	Basic
+	Testing      bool       `json:"testing"`
+	Environment  string     `json:"environment"`
+	Repository   Repository `json:"repo"`
+	WorkLocation string     `json:"work-location"`
+	DestLocation string     `json:"dest-location"`
 }
 
 type Repository struct {
@@ -40,8 +40,8 @@ func (p *Project) Load(f io.Reader) (*Project, error) {
 	return p, nil
 }
 
-func (p *Project) Process(bb func(entity.BranchSetter) (entity.UpStepper, error), m refmap.Mutator, ctx context.Context) error {
-	p.Edges = []entity.Edge{}
+func (p *Project) Process(bb func(BranchSetter) (UpStepper, error), m refmap.Mutator, ctx context.Context) error {
+	p.Edges = []Edge{}
 
 	err := p.calculateHash()
 	if err != nil {
@@ -57,7 +57,10 @@ func (p *Project) Process(bb func(entity.BranchSetter) (entity.UpStepper, error)
 		e.Process()
 
 		m.AddRef("exec:"+name, e)
-		m.MapRef("project", "exec:"+name)
+		err = m.MapRef("project", "exec:"+name)
+		if err != nil {
+			return err
+		}
 		cleLinks = append(cleLinks, "exec:"+name)
 	}
 
@@ -77,7 +80,10 @@ func (p *Project) Process(bb func(entity.BranchSetter) (entity.UpStepper, error)
 	}
 
 	for _, e := range p.Edges {
-		m.MapRef(e.Start, e.End)
+		err = m.MapRef(e.Start, e.End)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

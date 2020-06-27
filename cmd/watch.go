@@ -31,7 +31,6 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/oligoden/meta/entity"
-	"github.com/oligoden/meta/project"
 	"github.com/oligoden/meta/refmap"
 	"github.com/spf13/cobra"
 )
@@ -50,25 +49,10 @@ var watchCmd = &cobra.Command{
 			return
 		}
 
-		metaFolderName, err := cmd.Flags().GetString("metafolder")
-		if err != nil {
-			fmt.Println("error getting meta folder name", err)
-			return
-		}
-
-		destinationLocation, err := cmd.Flags().GetString("destination")
-		if err != nil {
-			fmt.Println("error getting destination location", err)
-			return
-		}
-		forceFlag, _ := cmd.Flags().GetBool("force")
 		verboseValue, _ := cmd.Flags().GetInt("verbose")
-		ctx := context.WithValue(context.Background(), entity.ContextKey("source"), metaFolderName)
-		ctx = context.WithValue(ctx, entity.ContextKey("destination"), destinationLocation)
-		ctx = context.WithValue(ctx, entity.ContextKey("force"), forceFlag)
-		ctx = context.WithValue(ctx, entity.ContextKey("watching"), true)
-		ctx = context.WithValue(ctx, entity.ContextKey("first-run"), true)
-		ctx = context.WithValue(ctx, entity.ContextKey("verbose"), verboseValue)
+		if verboseValue >= 1 {
+			fmt.Println("Loading metafile...")
+		}
 
 		f, err := os.Open(metaFileName)
 		if err != nil {
@@ -76,27 +60,47 @@ var watchCmd = &cobra.Command{
 			return
 		}
 
-		p, err := project.Load(f)
+		p, err := entity.Load(f)
 		if err != nil {
 			fmt.Println("error loading file", metaFileName, err)
 			return
 		}
 		f.Close()
 
-		if verboseValue >= 1 {
-			fmt.Println("Processing")
-		}
-
-		rm := refmap.Start()
-		err = p.Process(project.BuildBranch, rm, ctx)
+		workLocation, err := cmd.Flags().GetString("work")
 		if err != nil {
-			fmt.Println("error processing project", err)
+			fmt.Println("error getting meta folder name", err)
 			return
 		}
-		rm.Evaluate()
+
+		if workLocation == "" {
+			workLocation = p.WorkLocation
+		}
+
+		if workLocation == "" {
+			workLocation = "work"
+		}
+
+		destinationLocation, err := cmd.Flags().GetString("dest")
+		if err != nil {
+			fmt.Println("error getting destination location", err)
+			return
+		}
+
+		if destinationLocation == "" {
+			destinationLocation = p.DestLocation
+		}
+
+		forceFlag, _ := cmd.Flags().GetBool("force")
+		ctx := context.WithValue(context.Background(), entity.ContextKey("source"), workLocation)
+		ctx = context.WithValue(ctx, entity.ContextKey("destination"), destinationLocation)
+		ctx = context.WithValue(ctx, entity.ContextKey("force"), forceFlag)
+		ctx = context.WithValue(ctx, entity.ContextKey("watching"), true)
+		ctx = context.WithValue(ctx, entity.ContextKey("first-run"), true)
+		ctx = context.WithValue(ctx, entity.ContextKey("verbose"), verboseValue)
 
 		if verboseValue >= 1 {
-			fmt.Println("Building")
+			fmt.Println("Processing configuration...")
 		}
 
 		fileWatcher, err := fsnotify.NewWatcher()
@@ -114,9 +118,23 @@ var watchCmd = &cobra.Command{
 		defer metafileWatcher.Close()
 		metafileWatcher.Add(metaFileName)
 
+		ctx = context.WithValue(ctx, entity.ContextKey("watcher"), metafileWatcher)
+
+		rm := refmap.Start()
+		err = p.Process(entity.BuildProjectBranch, rm, ctx)
+		if err != nil {
+			fmt.Println("error processing project", err)
+			return
+		}
+		rm.Evaluate()
+
+		if verboseValue >= 1 {
+			fmt.Println("Building project...")
+		}
+
 		fmt.Println("Rebuilding files...")
 		for _, ref := range rm.ChangedFiles() {
-			filename := filepath.Join(metaFolderName, ref.Identifier())
+			filename := filepath.Join(workLocation, ref.Identifier())
 			if verboseValue >= 1 {
 				fmt.Println("monitoring", filename)
 			}
@@ -170,7 +188,7 @@ var watchCmd = &cobra.Command{
 					fmt.Println("fs event", event.Op, event.Name)
 					if event.Op&fsnotify.Write == fsnotify.Write ||
 						event.Op&fsnotify.Chmod == fsnotify.Chmod {
-						relPath, err := filepath.Rel(metaFolderName, event.Name)
+						relPath, err := filepath.Rel(workLocation, event.Name)
 						if err != nil {
 							fmt.Println("error finding relative path", err)
 							continue
@@ -201,7 +219,7 @@ var watchCmd = &cobra.Command{
 							break
 						}
 
-						err = p.Process(project.BuildBranch, rm, ctx)
+						err = p.Process(entity.BuildProjectBranch, rm, ctx)
 						if err != nil {
 							fmt.Println("error processing project", err)
 							run = false
@@ -257,8 +275,8 @@ func init() {
 	rootCmd.AddCommand(watchCmd)
 
 	watchCmd.Flags().String("metafile", "meta.json", "The meta file")
-	watchCmd.Flags().String("destination", "", "The destination folder")
-	watchCmd.Flags().String("metafolder", "work", "The meta folder")
+	watchCmd.Flags().String("dest", "", "The destination directory")
+	watchCmd.Flags().String("work", "", "The meta work directory")
 	watchCmd.Flags().BoolP("force", "f", false, "Force rebuilding of existing files")
 	watchCmd.Flags().IntP("verbose", "v", 0, "Set verbosity to 1, 2 or 3")
 }

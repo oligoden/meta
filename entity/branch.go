@@ -1,26 +1,24 @@
-package project
+package entity
 
 import (
 	"fmt"
-
-	"github.com/oligoden/meta/entity"
 )
 
-type Branch struct {
+type ProjectBranch struct {
 	Project     string
 	Testing     bool
 	Environment string
-	entity.Branch
+	Branch
 }
 
-func BuildBranch(m entity.BranchSetter) (entity.UpStepper, error) {
-	ent, err := entity.BuildBranch(m)
+func BuildProjectBranch(m BranchSetter) (UpStepper, error) {
+	ent, err := BuildBranch(m)
 	if err != nil {
 		return nil, err
 	}
 
-	b := Branch{
-		Branch: m.SetBranch().(entity.Branch),
+	b := ProjectBranch{
+		Branch: m.SetBranch().(Branch),
 	}
 
 	for {
