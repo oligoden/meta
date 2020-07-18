@@ -34,7 +34,69 @@ func TestLoad(t *testing.T) {
 	}
 
 	if p.Directories == nil {
-		t.Error("expected non nil Directories")
+		t.Error("expected directories")
+	}
+}
+
+func TestLoadOverride(t *testing.T) {
+	f := bytes.NewBufferString(`{
+		"name":"abc",
+		"execs": {
+			"a": {
+				"cmd": ["a"]
+			},
+			"b": {}
+		}
+	}`)
+	p, err := entity.Load(f)
+	if err != nil {
+		t.Error(err)
+	}
+
+	f = bytes.NewBufferString(`{bad json}`)
+	err = p.Load(f)
+	if err == nil {
+		t.Error("expected error")
+	}
+
+	f = bytes.NewBufferString(`{
+		"name":"def",
+		"execs": {
+			"a": {
+				"cmd": ["b"]
+			},
+			"c": {}
+		}
+	}`)
+
+	err = p.Load(f)
+	if err != nil {
+		t.Error(err)
+	}
+
+	exp := "def"
+	got := p.Name
+	if got != exp {
+		t.Errorf(`expected "%s", got "%s"`, exp, got)
+	}
+
+	if p.Execs == nil {
+		t.Error("expected execs")
+		t.FailNow()
+	}
+
+	if len(p.Execs) != 3 {
+		t.Error("expected 3 execs")
+	}
+
+	exc, ok := p.Execs["a"]
+	if !ok {
+		t.Error("expected exec a")
+		t.FailNow()
+	}
+
+	if len(exc.Cmd) != 1 {
+		t.Error("expected 1 cmd arg")
 	}
 }
 

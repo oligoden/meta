@@ -24,7 +24,10 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/oligoden/meta/entity"
 	"github.com/oligoden/meta/refmap"
@@ -42,7 +45,7 @@ Use the force flag (-f) to force rebuilding of all files.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		metaFileName, err := cmd.Flags().GetString("metafile")
 		if err != nil {
-			fmt.Println("error getting meta filename", err)
+			log.Fatalln("error getting meta filename", err)
 			return
 		}
 
@@ -53,15 +56,32 @@ Use the force flag (-f) to force rebuilding of all files.`,
 
 		f, err := os.Open(metaFileName)
 		if err != nil {
-			fmt.Println("error opening meta file", metaFileName, err)
+			log.Fatalln(err)
 			return
 		}
-		defer f.Close()
 
 		p, err := entity.Load(f)
 		if err != nil {
-			fmt.Println("error loading file", metaFileName, err)
+			log.Fatalln("error loading file", metaFileName, err)
 			return
+		}
+		f.Close()
+
+		metaOverrideFileName := strings.TrimSuffix(metaFileName, filepath.Ext(metaFileName)) + "-override" + filepath.Ext(metaFileName)
+
+		f, err = os.Open(metaOverrideFileName)
+		if err != nil {
+			if !strings.Contains(err.Error(), "no such file or directory") {
+				log.Fatalln(err)
+				return
+			}
+		} else {
+			err = p.Load(f)
+			if err != nil {
+				log.Fatalln("error loading file", metaOverrideFileName, err)
+				return
+			}
+			f.Close()
 		}
 
 		workLocation, err := cmd.Flags().GetString("work")

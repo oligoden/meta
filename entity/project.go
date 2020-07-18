@@ -31,13 +31,13 @@ func Load(f io.Reader) (*Project, error) {
 	return p, nil
 }
 
-func (p *Project) Load(f io.Reader) (*Project, error) {
+func (p *Project) Load(f io.Reader) error {
 	dec := json.NewDecoder(f)
 	err := dec.Decode(p)
 	if err != nil {
-		return p, err
+		return err
 	}
-	return p, nil
+	return nil
 }
 
 func (p *Project) Process(bb func(BranchSetter) (UpStepper, error), m refmap.Mutator, ctx context.Context) error {

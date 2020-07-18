@@ -24,9 +24,11 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
@@ -45,7 +47,7 @@ var watchCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		metaFileName, err := cmd.Flags().GetString("metafile")
 		if err != nil {
-			fmt.Println("error getting meta filename", err)
+			log.Fatalln("error getting meta filename", err)
 			return
 		}
 
@@ -56,16 +58,33 @@ var watchCmd = &cobra.Command{
 
 		f, err := os.Open(metaFileName)
 		if err != nil {
-			fmt.Println("error opening meta file", metaFileName, err)
+			log.Fatalln(err)
 			return
 		}
 
 		p, err := entity.Load(f)
 		if err != nil {
-			fmt.Println("error loading file", metaFileName, err)
+			log.Fatalln("error loading file", metaFileName, err)
 			return
 		}
 		f.Close()
+
+		metaOverrideFileName := strings.TrimSuffix(metaFileName, filepath.Ext(metaFileName)) + "-override" + filepath.Ext(metaFileName)
+
+		f, err = os.Open(metaOverrideFileName)
+		if err != nil {
+			if !strings.Contains(err.Error(), "no such file or directory") {
+				log.Fatalln(err)
+				return
+			}
+		} else {
+			err = p.Load(f)
+			if err != nil {
+				log.Fatalln("error loading file", metaFileName, err)
+				return
+			}
+			f.Close()
+		}
 
 		workLocation, err := cmd.Flags().GetString("work")
 		if err != nil {
@@ -206,17 +225,32 @@ var watchCmd = &cobra.Command{
 					if metafileChange {
 						f, err := os.Open(metaFileName)
 						if err != nil {
-							fmt.Println("error opening meta file", metaFileName, err)
+							fmt.Println("error opening meta file", err)
 							run = false
 							break
 						}
 
-						p, err = p.Load(f)
-						f.Close()
+						err = p.Load(f)
 						if err != nil {
 							fmt.Println("error loading file", metaFileName, err)
 							run = false
 							break
+						}
+						f.Close()
+
+						f, err = os.Open(metaOverrideFileName)
+						if err != nil {
+							if !strings.Contains(err.Error(), "no such file or directory") {
+								fmt.Println("error opening meta override file", err)
+								return
+							}
+						} else {
+							err = p.Load(f)
+							if err != nil {
+								fmt.Println("error loading meta override file", metaOverrideFileName, err)
+								return
+							}
+							f.Close()
 						}
 
 						err = p.Process(entity.BuildProjectBranch, rm, ctx)
