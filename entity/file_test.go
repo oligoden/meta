@@ -18,11 +18,13 @@ func TestFilePerforming(t *testing.T) {
 	ioutil.WriteFile("testing/a/aa/aaa.go", d1, 0644)
 
 	testCases := []struct {
-		desc    string
-		file    string
-		prps    string
-		dirPrps string
-		content string
+		desc     string
+		file     string
+		prps     string
+		dirPrps  string
+		ctrs     string
+		noOutput bool
+		content  string
 	}{
 		{
 			desc:    "normal template execution",
@@ -71,9 +73,22 @@ func TestFilePerforming(t *testing.T) {
 			content: "abc {{.Filename}}",
 		},
 		{
-			desc:    "test line inclusion control of .go files",
-			file:    "aaa.go.tmpl",
-			prps:    `"settings":"comment-filter"`,
+			desc:    "test copy only set on directory",
+			file:    "aaa.ext",
+			ctrs:    `"controls":{"behaviour":{"action":"copy","output":true}},`,
+			content: "abc {{.Filename}}",
+		},
+		{
+			desc:     "test no output set on directory",
+			file:     "aaa.ext",
+			ctrs:     `"controls":{"behaviour":{"output":false}},`,
+			noOutput: true,
+		},
+		{
+			desc: "test line inclusion control of .go files",
+			file: "aaa.go.tmpl",
+			// prps:    `"settings":"comment-filter"`,
+			ctrs:    `"controls":{"behaviour":{"filters":{"comment-filter":{}}, "output":true}},`,
 			content: "add this\n",
 		},
 	}
@@ -85,9 +100,11 @@ func TestFilePerforming(t *testing.T) {
 			str := `{
 				"directories": {
 					"a": {
+						"controls":{"behaviour":{"output":true}},
 						"directories": {
 							"aa": {
 								"settings": "%s",
+								%s
 								"files": {
 									"%s": {%s}
 								}
@@ -96,20 +113,20 @@ func TestFilePerforming(t *testing.T) {
 					}
 				}
 			}`
-			str = fmt.Sprintf(str, tC.dirPrps, tC.file, tC.prps)
+			str = fmt.Sprintf(str, tC.dirPrps, tC.ctrs, tC.file, tC.prps)
 
 			m := &entity.Basic{}
 			err := json.Unmarshal([]byte(str), &m)
 			if err != nil {
 				t.Error("error unmarshalling,", err)
 			}
+			m.Name = "project:name"
 
 			dir := m.Directories["a"]
-			dir.DestinationPath = "a"
-			dir.SourcePath = "a"
+			dir.Parent = m
+			dir.DstDerived = "a"
+			dir.SrcDerived = "a"
 			dir.Name = "a"
-			m.Directories["a"].ParentID = "project:name"
-			m.Directories["a"].Parent = m
 
 			rm := refmap.Start()
 			rm.AddRef("project:name", m)
@@ -121,7 +138,11 @@ func TestFilePerforming(t *testing.T) {
 			ctx = context.WithValue(ctx, entity.ContextKey("force"), true)
 			ctx = context.WithValue(ctx, entity.ContextKey("verbose"), 0)
 
-			dir.Process(entity.BuildBranch, rm, ctx)
+			err = dir.Process(&entity.Branch{}, rm, ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+
 			file, ok := dir.Directories["aa"].Files[tC.file]
 			if !ok {
 				t.Fatalf(`no file "%s"`, tC.file)
@@ -136,14 +157,20 @@ func TestFilePerforming(t *testing.T) {
 				t.Error(err)
 			}
 
-			content, err := ioutil.ReadFile("testing/" + dstFilename)
-			if err != nil {
-				t.Fatal(err)
+			if file.Controls.Behaviour.Output != !tC.noOutput {
+				t.Fatal("output flag does not match")
 			}
-			exp := tC.content
-			got := string(content)
-			if exp != got {
-				t.Errorf(`expected "%s", got "%s"`, exp, got)
+
+			if file.Controls.Behaviour.Output {
+				content, err := ioutil.ReadFile("testing/" + dstFilename)
+				if err != nil {
+					t.Fatal(err)
+				}
+				exp := tC.content
+				got := string(content)
+				if exp != got {
+					t.Errorf(`expected "%s", got "%s"`, exp, got)
+				}
 			}
 		})
 
@@ -151,144 +178,144 @@ func TestFilePerforming(t *testing.T) {
 	}
 }
 
-func TestFileForcing(t *testing.T) {
-	str := `{
-		"directories": {
-			"a": {
-				"directories": {
-					"aa": {
-						"files": {
-							"aab.ext": {}
-						}
-					}
-				}
-			}
-		}
-	}`
-	str = fmt.Sprintf(str)
+// func TestFileForcing(t *testing.T) {
+// 	str := `{
+// 		"directories": {
+// 			"a": {
+// 				"directories": {
+// 					"aa": {
+// 						"files": {
+// 							"aab.ext": {}
+// 						}
+// 					}
+// 				}
+// 			}
+// 		}
+// 	}`
+// 	str = fmt.Sprintf(str)
 
-	m := &entity.Basic{}
-	err := json.Unmarshal([]byte(str), &m)
-	if err != nil {
-		t.Error("error unmarshalling,", err)
-	}
+// 	m := &entity.Basic{}
+// 	err := json.Unmarshal([]byte(str), &m)
+// 	if err != nil {
+// 		t.Error("error unmarshalling,", err)
+// 	}
 
-	dir := m.Directories["a"]
-	dir.DestinationPath = "a"
-	dir.SourcePath = "a"
-	dir.Name = "a"
-	m.Directories["a"].ParentID = "project:name"
-	m.Directories["a"].Parent = m
+// 	dir := m.Directories["a"]
+// 	dir.DstDerived = "a"
+// 	dir.SrcDerived = "a"
+// 	dir.Name = "a"
+// 	// m.Directories["a"].ParentID = "project:name"
+// 	m.Directories["a"].Parent = m
 
-	rm := refmap.Start()
-	rm.AddRef("project:name", m)
+// 	rm := refmap.Start()
+// 	rm.AddRef("project:name", m)
 
-	ctx := context.Background()
-	ctx = context.WithValue(ctx, entity.ContextKey("source"), "testing/work")
-	ctx = context.WithValue(ctx, entity.ContextKey("destination"), "testing")
-	ctx = context.WithValue(ctx, entity.ContextKey("watching"), false)
-	ctx = context.WithValue(ctx, entity.ContextKey("force"), true)
-	ctx = context.WithValue(ctx, entity.ContextKey("verbose"), 0)
+// 	ctx := context.Background()
+// 	ctx = context.WithValue(ctx, entity.ContextKey("source"), "testing/work")
+// 	ctx = context.WithValue(ctx, entity.ContextKey("destination"), "testing")
+// 	ctx = context.WithValue(ctx, entity.ContextKey("watching"), false)
+// 	ctx = context.WithValue(ctx, entity.ContextKey("force"), true)
+// 	ctx = context.WithValue(ctx, entity.ContextKey("verbose"), 0)
 
-	err = dir.Process(entity.BuildBranch, rm, ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
+// 	err = dir.Process(&entity.Branch{}, rm, ctx)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
 
-	f1, _ := os.Create("testing/a/aa/aab.ext")
-	f1.WriteString("abc")
-	f1.Close()
+// 	f1, _ := os.Create("testing/a/aa/aab.ext")
+// 	f1.WriteString("abc")
+// 	f1.Close()
 
-	f1, _ = os.Create("testing/work/a/aa/aab.ext")
-	f1.WriteString("def")
-	f1.Close()
+// 	f1, _ = os.Create("testing/work/a/aa/aab.ext")
+// 	f1.WriteString("def")
+// 	f1.Close()
 
-	err = dir.Directories["aa"].Files["aab.ext"].Perform(rm, ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
+// 	err = dir.Directories["aa"].Files["aab.ext"].Perform(rm, ctx)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
 
-	content, err := ioutil.ReadFile("testing/a/aa/aab.ext")
-	if err != nil {
-		t.Fatal(err)
-	}
-	exp := "def"
-	got := string(content)
-	if exp != got {
-		t.Errorf(`expected "%s", got "%s"`, exp, got)
-	}
+// 	content, err := ioutil.ReadFile("testing/a/aa/aab.ext")
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	exp := "def"
+// 	got := string(content)
+// 	if exp != got {
+// 		t.Errorf(`expected "%s", got "%s"`, exp, got)
+// 	}
 
-	os.RemoveAll("testing/work/a/aa/aab.ext")
-	os.RemoveAll("testing/a/aa/aab.ext")
-}
+// 	os.RemoveAll("testing/work/a/aa/aab.ext")
+// 	os.RemoveAll("testing/a/aa/aab.ext")
+// }
 
-func TestFileNotForcing(t *testing.T) {
-	str := `{
-		"directories": {
-			"a": {
-				"directories": {
-					"aa": {
-						"files": {
-							"aab.ext": {}
-						}
-					}
-				}
-			}
-		}
-	}`
-	str = fmt.Sprintf(str)
+// func TestFileNotForcing(t *testing.T) {
+// 	str := `{
+// 		"directories": {
+// 			"a": {
+// 				"directories": {
+// 					"aa": {
+// 						"files": {
+// 							"aab.ext": {}
+// 						}
+// 					}
+// 				}
+// 			}
+// 		}
+// 	}`
+// 	str = fmt.Sprintf(str)
 
-	m := &entity.Basic{}
-	err := json.Unmarshal([]byte(str), &m)
-	if err != nil {
-		t.Error("error unmarshalling,", err)
-	}
+// 	m := &entity.Basic{}
+// 	err := json.Unmarshal([]byte(str), &m)
+// 	if err != nil {
+// 		t.Error("error unmarshalling,", err)
+// 	}
 
-	dir := m.Directories["a"]
-	dir.DestinationPath = "a"
-	dir.SourcePath = "a"
-	dir.Name = "a"
-	m.Directories["a"].ParentID = "project:name"
-	m.Directories["a"].Parent = m
+// 	dir := m.Directories["a"]
+// 	dir.DstDerived = "a"
+// 	dir.SrcDerived = "a"
+// 	dir.Name = "a"
+// 	// m.Directories["a"].ParentID = "project:name"
+// 	m.Directories["a"].Parent = m
 
-	rm := refmap.Start()
-	rm.AddRef("project:name", m)
+// 	rm := refmap.Start()
+// 	rm.AddRef("project:name", m)
 
-	ctx := context.Background()
-	ctx = context.WithValue(ctx, entity.ContextKey("source"), "testing/work")
-	ctx = context.WithValue(ctx, entity.ContextKey("destination"), "testing")
-	ctx = context.WithValue(ctx, entity.ContextKey("watching"), false)
-	ctx = context.WithValue(ctx, entity.ContextKey("force"), false)
-	ctx = context.WithValue(ctx, entity.ContextKey("verbose"), 0)
+// 	ctx := context.Background()
+// 	ctx = context.WithValue(ctx, entity.ContextKey("source"), "testing/work")
+// 	ctx = context.WithValue(ctx, entity.ContextKey("destination"), "testing")
+// 	ctx = context.WithValue(ctx, entity.ContextKey("watching"), false)
+// 	ctx = context.WithValue(ctx, entity.ContextKey("force"), false)
+// 	ctx = context.WithValue(ctx, entity.ContextKey("verbose"), 0)
 
-	err = dir.Process(entity.BuildBranch, rm, ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
+// 	err = dir.Process(&entity.Branch{}, rm, ctx)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
 
-	f1, _ := os.Create("testing/a/aa/aab.ext")
-	f1.WriteString("abc")
-	f1.Close()
+// 	f1, _ := os.Create("testing/a/aa/aab.ext")
+// 	f1.WriteString("abc")
+// 	f1.Close()
 
-	f1, _ = os.Create("testing/work/a/aa/aab.ext")
-	f1.WriteString("def")
-	f1.Close()
+// 	f1, _ = os.Create("testing/work/a/aa/aab.ext")
+// 	f1.WriteString("def")
+// 	f1.Close()
 
-	err = dir.Directories["aa"].Files["aab.ext"].Perform(rm, ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
+// 	err = dir.Directories["aa"].Files["aab.ext"].Perform(rm, ctx)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
 
-	content, err := ioutil.ReadFile("testing/a/aa/aab.ext")
-	if err != nil {
-		t.Fatal(err)
-	}
-	exp := "abc"
-	got := string(content)
-	if exp != got {
-		t.Errorf(`expected "%s", got "%s"`, exp, got)
-	}
+// 	content, err := ioutil.ReadFile("testing/a/aa/aab.ext")
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	exp := "abc"
+// 	got := string(content)
+// 	if exp != got {
+// 		t.Errorf(`expected "%s", got "%s"`, exp, got)
+// 	}
 
-	os.RemoveAll("testing/work/a/aa/aab.ext")
-	os.RemoveAll("testing/a/aa/aab.ext")
-}
+// 	os.RemoveAll("testing/work/a/aa/aab.ext")
+// 	os.RemoveAll("testing/a/aa/aab.ext")
+// }

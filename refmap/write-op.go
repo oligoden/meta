@@ -1,6 +1,8 @@
 package refmap
 
 import (
+	"fmt"
+
 	graph "github.com/oligoden/math-graph"
 )
 
@@ -40,6 +42,8 @@ type mapOp struct {
 }
 
 func (r Store) MapRef(key0, key1 string, setOption ...uint) error {
+	fmt.Println("mapping ", key0, key1)
+
 	set := uint(1)
 	if len(setOption) > 0 {
 		set = setOption[0]

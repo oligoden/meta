@@ -16,6 +16,9 @@ type nodesOp struct {
 }
 
 func (o nodesOp) topological(refs map[string]Actioner, g *graph.Graph) {
+	// fmt.Printf("\n\n%+v\n\n", g)
+	// fmt.Printf("\n\n%+v\n\n", g.StartNodes())
+
 	g.CompileRun(func(ref string) error {
 		if !strings.HasPrefix(ref, o.filter) {
 			return nil
@@ -90,6 +93,22 @@ func (r Store) ChangedExecs() []Actioner {
 func (r Store) ParentFiles(file string) []string {
 	parents := &nodesOp{
 		filter:    "file",
+		selection: "parents",
+		node:      file,
+		nodes:     make(chan string),
+	}
+	r.Nodes <- parents
+
+	nodes := []string{}
+	for node := range parents.nodes {
+		nodes = append(nodes, node)
+	}
+	return nodes
+}
+
+// ParentRefs returns a slice of all the parent refs.
+func (r Store) ParentRefs(file string) []string {
+	parents := &nodesOp{
 		selection: "parents",
 		node:      file,
 		nodes:     make(chan string),

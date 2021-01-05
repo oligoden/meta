@@ -34,6 +34,7 @@ func Start() *Store {
 			case a := <-s.Adds:
 				a.handle(s.refs, s.graph)
 			case a := <-s.Maps:
+				// fmt.Println("linking", a.start, a.end)
 				a.rsp <- s.graph.Link(a.start, a.end)
 			case a := <-s.Sets:
 				a.handle(s.refs, s.graph)
@@ -58,6 +59,7 @@ type Actioner interface {
 	State(...uint8) uint8
 	Hash() string
 	Identifier() string
+	Output() string
 	// Remove(Config)
 }
 

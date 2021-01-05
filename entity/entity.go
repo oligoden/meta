@@ -19,27 +19,82 @@ type Basic struct {
 	Name        string                `json:"name"`
 	Directories map[string]*Directory `json:"directories"`
 	Execs       map[string]*cle       `json:"execs"`
-	Import      string                `json:"import"`
-	ParentID    string                `json:"-"`
-	Parent      UpStepper             `json:"-"`
-	Edges       []Edge                `json:"-"`
+	// Import      string                `json:"import"`
+	Controls        controls   `json:"controls"`
+	Parent          Identifier `json:"-"`
+	PosibleMappings []Mapping  `json:"-"`
 	state.Detect
 }
 
-type Edge struct {
-	Start string
-	End   string
+type controls struct {
+	Behaviour *behaviour `json:"behaviour"`
+	Mappings  []*Mapping `json:"mappings"`
+}
+
+type Mapping struct {
+	Start      Regexp `json:"start"`
+	End        Regexp `json:"end"`
+	StartSet   string
+	EndSet     string
+	Recurrence int `json:"recurrence"`
+}
+
+type Regexp struct {
+	regexp.Regexp
+}
+
+func (r *Regexp) UnmarshalText(text []byte) error {
+	rr, err := Compile(string(text))
+	if err != nil {
+		return err
+	}
+	*r = *rr
+	return nil
+}
+
+func Compile(expr string) (*Regexp, error) {
+	re, err := regexp.Compile(expr)
+	if err != nil {
+		return nil, err
+	}
+	return &Regexp{*re}, nil
+}
+
+const (
+	NormalBehaviour = ""
+	CopyBehaviour   = "copy"
+)
+
+type behaviour struct {
+	Action     string  `json:"action"`
+	Output     bool    `json:"output"`
+	Filters    filters `json:"filters"`
+	Recurrence int     `json:"recurrence"`
+}
+
+type filters map[string]map[string]string
+
+func (fs filters) Has(f string) bool {
+	if _, has := fs[f]; has {
+		return true
+	}
+	return false
 }
 
 func (b Basic) Identifier() string {
 	return b.Name
 }
 
+func (b Basic) Output() string {
+	return ""
+}
+
 func (Basic) Perform(refmap.Grapher, context.Context) error {
 	return nil
 }
 
-type UpStepper interface {
+type Identifier interface {
+	Identifier() string
 }
 
 type Branch struct {
@@ -48,27 +103,21 @@ type Branch struct {
 	TemplateMethods
 }
 
-type DataBranch interface {
+type BranchBuilder interface {
+	Build(interface{}) (interface{}, error)
 }
 
-type BranchSetter interface {
-	SetBranch(...DataBranch) DataBranch
-}
+func (b *Branch) Build(e interface{}) (interface{}, error) {
+	ent := e
 
-func BuildBranch(m BranchSetter) (UpStepper, error) {
-	ent, ok := m.(UpStepper)
-	if !ok {
-		return nil, fmt.Errorf("not a UpStepper interface")
+	if b.Directories == nil {
+		b.Directories = []string{}
 	}
-
-	b := Branch{}
-	b.Directories = []string{}
 
 	for {
 		switch v := ent.(type) {
 		case nil:
-			m.SetBranch(b)
-			return nil, fmt.Errorf("encountered nil UpStepper")
+			return nil, fmt.Errorf("encountered nil")
 		case *Directory:
 			b.Directories = append(b.Directories, v.Name)
 			ent = v.Parent
@@ -76,7 +125,6 @@ func BuildBranch(m BranchSetter) (UpStepper, error) {
 			b.Filename = v.Name
 			ent = v.Parent
 		default:
-			m.SetBranch(b)
 			return ent, nil
 		}
 	}

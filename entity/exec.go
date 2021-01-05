@@ -19,8 +19,7 @@ type cle struct {
 	Environment map[string]string `json:"env"`
 	STDOut      *bytes.Buffer
 	STDErr      *bytes.Buffer
-	Parent      UpStepper `json:"-"`
-	ParentID    string    `json:"-"`
+	Parent      Identifier `json:"-"`
 	state.Detect
 }
 
@@ -34,6 +33,10 @@ func (exec *cle) calculateHash() error {
 }
 
 func (e cle) Identifier() string {
+	return "exec:" + e.Name
+}
+
+func (e cle) Output() string {
 	output := fmt.Sprintf("action %s was run", e.Name)
 	if e.STDOut.String() != "" {
 		output += "\nstdout: " + e.STDOut.String()
@@ -44,13 +47,13 @@ func (e cle) Identifier() string {
 	return output
 }
 
-func (e *cle) Process() error {
-	err := e.calculateHash()
-	if err != nil {
-		return err
-	}
-	return nil
-}
+// func (e *cle) Process() error {
+// 	err := e.calculateHash()
+// 	if err != nil {
+// 		return err
+// 	}
+// 	return nil
+// }
 
 func (e *cle) Perform(rm refmap.Grapher, ctx context.Context) error {
 	RootDstDir := ctx.Value(ContextKey("destination")).(string)

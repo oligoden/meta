@@ -37,13 +37,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// watchCmd represents the watch command
-var watchCmd = &cobra.Command{
-	Use:   "watch",
-	Short: "Watch meta files for any changes and update source code",
-	Long: `Use watch to monitor your meta files for any changes and update source code.
-	By default, only files that do not exist will be build.
-	Use the force flag (-f) to force rebuilding of all files.`,
+// upCmd represents the up command
+var upCmd = &cobra.Command{
+	Use:   "up",
+	Short: "Bring the services up",
+	Long:  `Using up will read and watch all files.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		metaFileName, err := cmd.Flags().GetString("metafile")
 		if err != nil {
@@ -52,10 +50,8 @@ var watchCmd = &cobra.Command{
 		}
 
 		verboseValue, _ := cmd.Flags().GetInt("verbose")
-		if verboseValue >= 1 {
-			fmt.Println("Loading metafile...")
-		}
 
+		fmt.Println("loading metafile")
 		f, err := os.Open(metaFileName)
 		if err != nil {
 			log.Fatalln(err)
@@ -69,7 +65,7 @@ var watchCmd = &cobra.Command{
 		}
 		f.Close()
 
-		metaOverrideFileName := strings.TrimSuffix(metaFileName, filepath.Ext(metaFileName)) + "-override" + filepath.Ext(metaFileName)
+		metaOverrideFileName := strings.TrimSuffix(metaFileName, filepath.Ext(metaFileName)) + ".override" + filepath.Ext(metaFileName)
 
 		f, err = os.Open(metaOverrideFileName)
 		if err != nil {
@@ -96,10 +92,6 @@ var watchCmd = &cobra.Command{
 			workLocation = p.WorkLocation
 		}
 
-		if workLocation == "" {
-			workLocation = "work"
-		}
-
 		destinationLocation, err := cmd.Flags().GetString("dest")
 		if err != nil {
 			fmt.Println("error getting destination location", err)
@@ -114,14 +106,9 @@ var watchCmd = &cobra.Command{
 		ctx := context.WithValue(context.Background(), entity.ContextKey("source"), workLocation)
 		ctx = context.WithValue(ctx, entity.ContextKey("destination"), destinationLocation)
 		ctx = context.WithValue(ctx, entity.ContextKey("force"), forceFlag)
-		ctx = context.WithValue(ctx, entity.ContextKey("watching"), true)
-		ctx = context.WithValue(ctx, entity.ContextKey("first-run"), true)
 		ctx = context.WithValue(ctx, entity.ContextKey("verbose"), verboseValue)
 
-		if verboseValue >= 1 {
-			fmt.Println("Processing configuration...")
-		}
-
+		fmt.Println("processing configuration")
 		fileWatcher, err := fsnotify.NewWatcher()
 		if err != nil {
 			fmt.Println("error starting file watcher", err)
@@ -145,44 +132,38 @@ var watchCmd = &cobra.Command{
 			fmt.Println("error processing project", err)
 			return
 		}
-		rm.Evaluate()
-
-		if verboseValue >= 1 {
-			fmt.Println("Building project...")
+		err = rm.Evaluate()
+		if err != nil {
+			fmt.Println("error evaluating graph", err)
+			return
 		}
 
-		fmt.Println("Rebuilding files...")
-		for _, ref := range rm.ChangedFiles() {
-			filename := filepath.Join(workLocation, ref.Identifier())
-			if verboseValue >= 1 {
-				fmt.Println("monitoring", filename)
+		fmt.Println("building project")
+		for _, ref := range rm.ChangedRefs() {
+			if strings.HasPrefix(ref.Identifier(), "file:") {
+				filename := filepath.Join(workLocation, ref.Identifier()[5:])
+				fileWatcher.Add(filename)
 			}
-			fileWatcher.Add(filename)
+
 			err = ref.Perform(rm, ctx)
 			if err != nil {
-				fmt.Println("error performing file actions on", ref.Identifier(), err)
-				return
+				fmt.Println("error performing actions on", ref.Identifier(), err)
+				fmt.Println(ref.Output())
+			}
+
+			if ref.Output() != "" {
+				fmt.Println(ref.Output())
 			}
 		}
-
-		fmt.Println("Running execs...")
-		for _, ref := range rm.ChangedExecs() {
-			err = ref.Perform(rm, ctx)
-			if err != nil {
-				fmt.Println("error performing exec actions,", err)
-				fmt.Println(ref.Identifier())
-				return
-			}
-			fmt.Println(ref.Identifier())
-		}
-
 		rm.Finish()
 
 		stopSignal := make(chan os.Signal, 1)
 		signal.Notify(stopSignal, os.Interrupt, os.Kill)
-
 		ctx = context.WithValue(ctx, entity.ContextKey("force"), true)
 		done := make(chan bool)
+
+		fmt.Println("READY")
+		fmt.Println("watching for changes")
 		go func() {
 			run := true
 			metafileChange := false
@@ -263,54 +244,42 @@ var watchCmd = &cobra.Command{
 					}
 					rm.Propagate()
 
-					fmt.Println("Rebuilding files...")
-					for _, ref := range rm.ChangedFiles() {
-						if verboseValue >= 1 {
-							fmt.Println("rebuilding", ref.Identifier())
-						}
+					fmt.Println("rebuilding")
+					for _, ref := range rm.ChangedRefs() {
 						err = ref.Perform(rm, ctx)
 						if err != nil {
-							fmt.Println("error performing file actions on", ref.Identifier(), err)
+							fmt.Println("error performing actions on", ref.Identifier(), err)
+							fmt.Println(ref.Output())
 							rm.Finish()
 							metafileChange = false
 							fileChange = false
 							break
 						}
-					}
 
-					if !metafileChange && !fileChange {
-						continue
-					}
-
-					fmt.Println("Running execs...")
-					for _, ref := range rm.ChangedExecs() {
-						err = ref.Perform(rm, ctx)
-						if err != nil {
-							fmt.Println("error performing exec actions,", err)
-							fmt.Println(ref.Identifier())
-							break
+						if ref.Output() != "" {
+							fmt.Println(ref.Output())
 						}
-						fmt.Println(ref.Identifier())
 					}
 
-					rm.Finish()
-					metafileChange = false
-					fileChange = false
+					if metafileChange || fileChange {
+						rm.Finish()
+						metafileChange = false
+						fileChange = false
+					}
 				}
 			}
 			done <- true
 		}()
-
 		<-done
 	},
 }
 
 func init() {
-	rootCmd.AddCommand(watchCmd)
+	rootCmd.AddCommand(upCmd)
 
-	watchCmd.Flags().String("metafile", "meta.json", "The meta file")
-	watchCmd.Flags().String("dest", "", "The destination directory")
-	watchCmd.Flags().String("work", "", "The meta work directory")
-	watchCmd.Flags().BoolP("force", "f", false, "Force rebuilding of existing files")
-	watchCmd.Flags().IntP("verbose", "v", 0, "Set verbosity to 1, 2 or 3")
+	upCmd.Flags().String("metafile", "meta.json", "The meta file")
+	upCmd.Flags().String("dest", "", "The destination directory")
+	upCmd.Flags().String("work", "", "The meta work directory")
+	upCmd.Flags().BoolP("force", "f", false, "Force rebuilding of existing files")
+	upCmd.Flags().IntP("verbose", "v", 0, "Set verbosity to 1, 2 or 3")
 }

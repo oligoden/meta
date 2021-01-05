@@ -25,11 +25,11 @@ type file struct {
 	// - "parse-dir" to parse all templates in directory
 	// - "comment-filter" to apply comment line filter
 	// - "no-output" to skip file output
-	Settings string     `json:"settings"`
-	Template *Templax   `json:"-"`
-	Parent   UpStepper  `json:"-"`
-	ParentID string     `json:"-"`
-	Branch   DataBranch `json:"-"`
+	Settings string      `json:"settings"`
+	Controls controls    `json:"controls"`
+	Template *Templax    `json:"-"`
+	Parent   Identifier  `json:"-"`
+	Branch   interface{} `json:"-"`
 	state.Detect
 }
 
@@ -42,15 +42,12 @@ func (file *file) calculateHash() error {
 	return nil
 }
 
-func (file *file) SetBranch(b ...DataBranch) DataBranch {
-	if len(b) > 0 {
-		file.Branch = b[0]
-	}
-	return file.Branch
+func (file file) Identifier() string {
+	return "file:" + file.Source
 }
 
-func (file file) Identifier() string {
-	return file.Source
+func (b file) Output() string {
+	return ""
 }
 
 func (file *file) Perform(rm refmap.Grapher, ctx context.Context) error {
@@ -66,14 +63,14 @@ func (file *file) Perform(rm refmap.Grapher, ctx context.Context) error {
 	if verboseValue >= 1 {
 		fmt.Println("writing", srcFilename)
 	}
-	defaultSrcDir := parentDS.SourcePath
+	defaultSrcDir := parentDS.SrcDerived
 	srcDirectory := filepath.Join(RootSrcDir, defaultSrcDir)
 	srcDirSpecific := filepath.Join(RootSrcDir, filepath.Dir(file.Source))
 	srcFileSpecific := filepath.Join(srcDirSpecific, srcFilename)
 
 	RootDstDir := ctx.Value(ContextKey("destination")).(string)
 	dstFilename := strings.TrimSuffix(file.Name, ".tmpl")
-	defaultDstDir := parentDS.DestinationPath
+	defaultDstDir := parentDS.DstDerived
 	dstDirectory := filepath.Join(RootDstDir, defaultDstDir)
 	dstFile := filepath.Join(dstDirectory, dstFilename)
 
@@ -89,7 +86,7 @@ func (file *file) Perform(rm refmap.Grapher, ctx context.Context) error {
 
 	contentBuf := &bytes.Buffer{}
 
-	if has(parentDS, file, "copy-only") {
+	if has(parentDS, file, "copy-only") || file.Controls.Behaviour.Action == CopyBehaviour {
 		r, err := os.Open(srcFileSpecific)
 		if err != nil {
 			return err
@@ -119,6 +116,14 @@ func (file *file) Perform(rm refmap.Grapher, ctx context.Context) error {
 			}
 		}
 
+		for _, t := range rm.ParentFiles(file.Identifier()) {
+			f := strings.TrimPrefix(t, "file:")
+			err := file.Template.Prepare(filepath.Join(RootSrcDir, f))
+			if err != nil {
+				return err
+			}
+		}
+
 		for _, template := range file.Templates {
 			template = filepath.Join(strings.Split(template, "/")...)
 
@@ -144,7 +149,7 @@ func (file *file) Perform(rm refmap.Grapher, ctx context.Context) error {
 
 	outputBuf := &bytes.Buffer{}
 
-	if has(parentDS, file, "comment-filter") {
+	if has(parentDS, file, "comment-filter") || file.Controls.Behaviour.Filters.Has("comment-filter") {
 		err := lineFilter(contentBuf, outputBuf)
 		if err != nil {
 			return fmt.Errorf("error with line control, %w", err)

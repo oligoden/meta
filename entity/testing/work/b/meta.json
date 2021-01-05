@@ -1,11 +1,11 @@
 {
-    "name": "Demo",
+    "name": "Import",
     "directories": {
-        "a":{
+        "ba":{
             "files": {
-                "a.ext": {
+                "baa.ext": {
                     "templates": [
-                        "a/b.ext"
+                        "ba/bab.ext"
                     ]
                 }
             }

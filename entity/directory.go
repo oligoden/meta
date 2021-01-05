@@ -7,16 +7,17 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/fsnotify/fsnotify"
 	"github.com/oligoden/meta/refmap"
+	"gopkg.in/fsnotify.v1"
 )
 
 type Directory struct {
-	Source          string           `json:"from"`
-	Destination     string           `json:"dest"`
-	Files           map[string]*file `json:"files"`
-	SourcePath      string           `json:"-"`
-	DestinationPath string           `json:"-"`
+	SrcOverride string           `json:"src-ovr"`
+	DstOverride string           `json:"dst-ovr"`
+	Files       map[string]*file `json:"files"`
+	SrcDerived  string           `json:"-"`
+	DstDerived  string           `json:"-"`
+	Import      *configImport    `json:"import"`
 
 	// Settings can contain:
 	// - "copy-only" to only copy file
@@ -26,6 +27,13 @@ type Directory struct {
 	Settings string   `json:"settings"`
 	LinkTo   []string `json:"linkto"`
 	Basic
+}
+
+type configImport struct {
+}
+
+func (d Directory) Identifier() string {
+	return "dir:" + d.SrcDerived + ":" + d.Name
 }
 
 func (d *Directory) calculateHash() error {
@@ -39,16 +47,16 @@ func (d *Directory) calculateHash() error {
 	return nil
 }
 
-func (d *Directory) Process(bb func(BranchSetter) (UpStepper, error), m refmap.Mutator, ctx context.Context) error {
-	verboseValue := ctx.Value(ContextKey("verbose")).(int)
-	d.SourcePath = path(d.SourcePath, d.Source)
-	d.DestinationPath = path(d.DestinationPath, d.Destination)
+func (d *Directory) Process(bb BranchBuilder, rm refmap.Mutator, ctx context.Context) error {
+	// verboseValue := ctx.Value(ContextKey("verbose")).(int)
+	d.SrcDerived = path(d.SrcDerived, d.SrcOverride)
+	d.DstDerived = path(d.DstDerived, d.DstOverride)
 
-	if d.Import != "" {
+	if d.Import != nil {
 		rootSrcDir := ctx.Value(ContextKey("source")).(string)
-		metafile := filepath.Join(rootSrcDir, d.SourcePath, "/meta.json")
+		metafile := filepath.Join(rootSrcDir, d.SrcDerived, "/meta.json")
 
-		f, err := os.Open("work/" + d.SourcePath + "/meta.json")
+		f, err := os.Open(metafile)
 		if err != nil {
 			fmt.Println(err)
 			return err
@@ -65,23 +73,13 @@ func (d *Directory) Process(bb func(BranchSetter) (UpStepper, error), m refmap.M
 			metfileWatcher.Add(metafile)
 		}
 
-		if d.Import == "Directories" {
-			if d.Directories == nil {
-				d.Directories = map[string]*Directory{}
-			}
-			for k, v := range p.Directories {
-				d.Directories[k] = v
-				updatePaths(d.Directories[k], d.SourcePath)
-			}
+		if d.Directories == nil {
+			d.Directories = map[string]*Directory{}
 		}
-	}
-
-	if d.Edges == nil {
-		d.Edges = []Edge{}
-	}
-
-	if d.LinkTo == nil {
-		d.LinkTo = []string{}
+		for k, v := range p.Directories {
+			d.Directories[k] = v
+			updatePaths(d.Directories[k], d.SrcDerived)
+		}
 	}
 
 	err := d.calculateHash()
@@ -89,87 +87,257 @@ func (d *Directory) Process(bb func(BranchSetter) (UpStepper, error), m refmap.M
 		return err
 	}
 
-	refName := fmt.Sprintf("dir:%s:%s", d.SourcePath, d.Name)
-	m.AddRef(refName, d)
-	err = m.MapRef(d.ParentID, refName)
+	rm.AddRef(d.Identifier(), d)
+	err = rm.MapRef(d.Parent.Identifier(), d.Identifier())
 	if err != nil {
-		return err
-	}
-
-	for name, e := range d.Execs {
-		e.Name = name
-		e.Parent = d
-		e.ParentID = refName
-		err := e.calculateHash()
-		if err != nil {
-			return err
-		}
-		m.AddRef("exec:"+name, e)
-		err = m.MapRef(refName, "exec:"+name)
-		if err != nil {
-			return err
-		}
-		d.LinkTo = append(d.LinkTo, "exec:"+name)
+		return fmt.Errorf("mapping reference, %w", err)
 	}
 
 	for name, dir := range d.Directories {
-		dir.Parent = d
-		dir.ParentID = refName
-		dir.SourcePath = filepath.Join(d.SourcePath, name)
-		dir.DestinationPath = filepath.Join(d.DestinationPath, name)
 		dir.Name = name
-		dir.LinkTo = d.LinkTo
-		dir.Edges = d.Edges
-		dir.Process(bb, m, ctx)
-		d.Edges = dir.Edges
+		dir.Parent = d
+		dir.SrcDerived = filepath.Join(d.SrcDerived, name)
+		dir.DstDerived = filepath.Join(d.DstDerived, name)
+
+		if dir.Controls.Behaviour == nil {
+			dir.Controls.Behaviour = &behaviour{}
+			if d.Controls.Behaviour != nil {
+				dir.Controls.Behaviour.Action = d.Controls.Behaviour.Action
+				dir.Controls.Behaviour.Output = d.Controls.Behaviour.Output
+				if dir.Controls.Behaviour.Filters == nil {
+					dir.Controls.Behaviour.Filters = make(map[string]map[string]string)
+				}
+				for k, f := range d.Controls.Behaviour.Filters {
+					dir.Controls.Behaviour.Filters[k] = f
+				}
+			}
+		}
+
+		for _, m := range d.Controls.Mappings {
+			matchStart := m.Start.MatchString(dir.Identifier())
+			matchEnd := m.End.MatchString(dir.Identifier())
+			if matchStart && matchEnd {
+				return fmt.Errorf("directory matches start and end reference")
+			}
+			if matchStart {
+				d.PosibleMappings = append(d.PosibleMappings, Mapping{
+					StartSet:   dir.Identifier(),
+					End:        m.End,
+					Recurrence: m.Recurrence,
+				})
+			}
+			if matchEnd {
+				d.PosibleMappings = append(d.PosibleMappings, Mapping{
+					Start:      m.Start,
+					EndSet:     dir.Identifier(),
+					Recurrence: m.Recurrence,
+				})
+			}
+		}
 	}
 
 	for name, file := range d.Files {
 		file.Name = name
 		file.Parent = d
-		file.ParentID = refName
+
+		if file.Controls.Behaviour == nil {
+			file.Controls.Behaviour = &behaviour{}
+			if d.Controls.Behaviour != nil {
+				file.Controls.Behaviour.Action = d.Controls.Behaviour.Action
+				file.Controls.Behaviour.Output = d.Controls.Behaviour.Output
+				if file.Controls.Behaviour.Filters == nil {
+					file.Controls.Behaviour.Filters = make(map[string]map[string]string)
+				}
+				for k, f := range d.Controls.Behaviour.Filters {
+					file.Controls.Behaviour.Filters[k] = f
+				}
+			}
+		}
 
 		err := file.calculateHash()
 		if err != nil {
 			return err
 		}
 
-		_, err = bb(file)
+		_, err = bb.Build(file)
 		if err != nil {
-			return err
+			return fmt.Errorf("building branch, %w", err)
 		}
+		file.Branch = bb
 
 		if file.Source == "" {
-			file.Source = filepath.Join(d.SourcePath, name)
+			file.Source = filepath.Join(d.SrcDerived, name)
 		} else if strings.HasPrefix(file.Source, "./") {
-			file.Source = filepath.Join(d.SourcePath, file.Source)
+			file.Source = filepath.Join(d.SrcDerived, file.Source)
 		}
 
-		m.AddRef("file:"+file.Source, file)
-		err = m.MapRef(file.ParentID, "file:"+file.Source)
+		for _, m := range d.Controls.Mappings {
+			matchStart := m.Start.MatchString(file.Identifier())
+			matchEnd := m.End.MatchString(file.Identifier())
+			if matchStart && matchEnd {
+				return fmt.Errorf("directory matches start and end reference")
+			}
+			if matchStart {
+				d.PosibleMappings = append(d.PosibleMappings, Mapping{
+					StartSet:   file.Identifier(),
+					End:        m.End,
+					Recurrence: m.Recurrence,
+				})
+			}
+			if matchEnd {
+				d.PosibleMappings = append(d.PosibleMappings, Mapping{
+					Start:      m.Start,
+					EndSet:     file.Identifier(),
+					Recurrence: m.Recurrence,
+				})
+			}
+		}
+
+		rm.AddRef("file:"+file.Source, file)
+		err = rm.MapRef(file.Parent.Identifier(), "file:"+file.Source)
+		if err != nil {
+			return err
+		}
+	}
+
+	for name, e := range d.Execs {
+		e.Name = name
+		e.Parent = d
+
+		err := e.calculateHash()
 		if err != nil {
 			return err
 		}
 
-		for _, t := range file.Templates {
-			t = filepath.Join(strings.Split(t, "/")...)
-
-			if verboseValue >= 3 {
-				fmt.Println("linking", t, "to", file.Source)
+		for _, m := range d.Controls.Mappings {
+			matchStart := m.Start.MatchString(e.Identifier())
+			matchEnd := m.End.MatchString(e.Identifier())
+			if matchStart && matchEnd {
+				return fmt.Errorf("directory matches start and end reference")
 			}
-
-			d.Edges = append(d.Edges, Edge{
-				Start: "file:" + t,
-				End:   "file:" + file.Source,
-			})
+			if matchStart {
+				d.PosibleMappings = append(d.PosibleMappings, Mapping{
+					StartSet:   e.Identifier(),
+					End:        m.End,
+					Recurrence: m.Recurrence,
+				})
+			}
+			if matchEnd {
+				d.PosibleMappings = append(d.PosibleMappings, Mapping{
+					Start:      m.Start,
+					EndSet:     e.Identifier(),
+					Recurrence: m.Recurrence,
+				})
+			}
 		}
 
-		for _, lt := range d.LinkTo {
-			err = m.MapRef("file:"+file.Source, lt)
-			if err != nil {
-				return err
+		rm.AddRef("exec:"+name, e)
+		err = rm.MapRef(d.Identifier(), "exec:"+name)
+		if err != nil {
+			return err
+		}
+	}
+
+	// look for directories matching posible mappings
+	for _, dir := range d.Directories {
+		for _, m := range d.PosibleMappings {
+			if m.StartSet == "" && dir.Identifier() != m.EndSet {
+				match := m.Start.MatchString(dir.Identifier())
+				if match {
+					err := rm.MapRef(dir.Identifier(), m.EndSet)
+					if err != nil {
+						return err
+					}
+				}
+			}
+			if m.EndSet == "" && dir.Identifier() != m.StartSet {
+				match := m.End.MatchString(dir.Identifier())
+				if match {
+					err := rm.MapRef(m.StartSet, dir.Identifier())
+					if err != nil {
+						return err
+					}
+				}
 			}
 		}
+	}
+
+	// look for files matching posible mappings
+	for _, file := range d.Files {
+		for _, m := range d.PosibleMappings {
+			if m.StartSet == "" && file.Identifier() != m.EndSet {
+				match := m.Start.MatchString(file.Identifier())
+				if match {
+					err := rm.MapRef(file.Identifier(), m.EndSet)
+					if err != nil {
+						return err
+					}
+				}
+			}
+			if m.EndSet == "" && file.Identifier() != m.StartSet {
+				match := m.End.MatchString(file.Identifier())
+				if match {
+					err := rm.MapRef(m.StartSet, file.Identifier())
+					if err != nil {
+						return err
+					}
+				}
+			}
+		}
+	}
+
+	// look for execs matching posible mappings
+	for _, e := range d.Execs {
+		for _, m := range d.PosibleMappings {
+			if m.StartSet == "" && e.Identifier() != m.EndSet {
+				match := m.Start.MatchString(e.Identifier())
+				if match {
+					err := rm.MapRef(e.Identifier(), m.EndSet)
+					if err != nil {
+						return err
+					}
+				}
+			}
+			if m.EndSet == "" && e.Identifier() != m.StartSet {
+				match := m.End.MatchString(e.Identifier())
+				if match {
+					err := rm.MapRef(m.StartSet, e.Identifier())
+					if err != nil {
+						return err
+					}
+				}
+			}
+		}
+	}
+
+	for _, dir := range d.Directories {
+		for _, m := range d.Controls.Mappings {
+			// if m.Recurrence > 0 {
+			// 	m.Recurrence--
+			// 	dir.Controls.Mappings = append(dir.Controls.Mappings, m)
+			// }
+			// if m.Recurrence == -1 {
+			// 	dir.Controls.Mappings = append(dir.Controls.Mappings, m)
+			// }
+			dir.Controls.Mappings = append(dir.Controls.Mappings, m)
+		}
+
+		// for _, m := range d.PosibleMappings {
+		// 	if m.Recurrence > 0 {
+		// 		m.Recurrence--
+		// 		dir.PosibleMappings = append(dir.PosibleMappings, m)
+		// 	}
+		// 	if m.Recurrence == -1 {
+		// 		dir.PosibleMappings = append(dir.PosibleMappings, m)
+		// 	}
+		// }
+
+		dir.PosibleMappings = d.PosibleMappings
+		err := dir.Process(bb, rm, ctx)
+		if err != nil {
+			return err
+		}
+		d.PosibleMappings = dir.PosibleMappings
 	}
 
 	return nil

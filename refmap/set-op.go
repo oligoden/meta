@@ -26,7 +26,11 @@ func (o SetOp) handle(refs map[string]Actioner, g *graph.Graph) {
 	// }
 	switch o.Key {
 	case "propagate":
-		propagate(refs, g)
+		if o.Val == "" {
+			propagate(refs, g)
+		} else {
+			propagateFrom(o.Val, refs, g)
+		}
 		o.Err <- nil
 	case "evaluate":
 		g.Evaluate()
@@ -81,6 +85,20 @@ func propagate(refs map[string]Actioner, g *graph.Graph) {
 	}
 }
 
+func propagateFrom(node string, refs map[string]Actioner, g *graph.Graph) {
+	update := false
+
+	g.SetRun(func(node string) error {
+		if refs[node].State() == state.Updated {
+			update = true
+		}
+		if update {
+			refs[node].State(state.Updated)
+		}
+		return nil
+	}, node)
+}
+
 func finish(refs map[string]Actioner) {
 	for _, ref := range refs {
 		// 		if ref.Change == state.Remove {
@@ -112,13 +130,13 @@ func (r Store) Finish() {
 	<-setter.Err
 }
 
-func (r Store) Evaluate() {
+func (r Store) Evaluate() error {
 	setter := &SetOp{
 		Key: "evaluate",
 		Err: make(chan error),
 	}
 	r.Sets <- setter
-	<-setter.Err
+	return <-setter.Err
 }
 
 func (r Store) Propagate() {

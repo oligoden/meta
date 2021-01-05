@@ -40,14 +40,14 @@ func TestLoad(t *testing.T) {
 
 func TestLoadOverride(t *testing.T) {
 	f := bytes.NewBufferString(`{
-		"name":"abc",
-		"execs": {
-			"a": {
-				"cmd": ["a"]
-			},
-			"b": {}
-		}
-	}`)
+			"name":"abc",
+			"execs": {
+				"a": {
+					"cmd": ["a"]
+				},
+				"b": {}
+			}
+		}`)
 	p, err := entity.Load(f)
 	if err != nil {
 		t.Error(err)
@@ -60,14 +60,14 @@ func TestLoadOverride(t *testing.T) {
 	}
 
 	f = bytes.NewBufferString(`{
-		"name":"def",
-		"execs": {
-			"a": {
-				"cmd": ["b"]
-			},
-			"c": {}
-		}
-	}`)
+			"name":"def",
+			"execs": {
+				"a": {
+					"cmd": ["b"]
+				},
+				"c": {}
+			}
+		}`)
 
 	err = p.Load(f)
 	if err != nil {
@@ -106,9 +106,7 @@ func TestProcess(t *testing.T) {
 		"directories":{
 			"a":{
 				"files":{
-					"aa.ext":{
-						"templates": ["b/ba.ext"]
-					}
+					"aa.ext":{}
 				}
 			},
 			"b":{
@@ -125,7 +123,7 @@ func TestProcess(t *testing.T) {
 
 	rm := refmap.Start()
 	ctx := context.WithValue(context.Background(), entity.ContextKey("verbose"), 0)
-	err = p.Process(entity.BuildBranch, rm, ctx)
+	err = p.Process(&entity.ProjectBranch{}, rm, ctx)
 	if err != nil {
 		t.Error(err)
 	}
@@ -137,37 +135,33 @@ func TestProcess(t *testing.T) {
 	}
 
 	exp = "a"
-	got = p.Directories["a"].SourcePath
+	got = p.Directories["a"].SrcDerived
 	if got != exp {
 		t.Errorf(`expected "%s", got "%s"`, exp, got)
 	}
 
 	exp = "a"
-	got = p.Directories["a"].DestinationPath
+	got = p.Directories["a"].DstDerived
 	if got != exp {
 		t.Errorf(`expected "%s", got "%s"`, exp, got)
 	}
 
 	if _, ok := p.Directories["a"].Parent.(*entity.Project); !ok {
-		t.Error("expected parent to be project, got")
+		t.Error("expected parent to be project")
 	}
 
 	if p.Directories["a"].Hash() == "" {
 		t.Errorf(`expected hash, got empty sting`)
 	}
-
-	if len(p.Edges) == 0 {
-		t.Error("expected edge")
-	}
 }
 
 func TestProcessCheckHashChange(t *testing.T) {
 	f := bytes.NewBufferString(`{
-		"name":"abc",
-		"directories":{
-			"a":{}
-		}
-	}`)
+			"name":"abc",
+			"directories":{
+				"a":{}
+			}
+		}`)
 	p, err := entity.Load(f)
 	if err != nil {
 		t.Error(err)
@@ -175,7 +169,7 @@ func TestProcessCheckHashChange(t *testing.T) {
 
 	rm := refmap.Start()
 	ctx := context.WithValue(context.Background(), entity.ContextKey("verbose"), 0)
-	err = p.Process(entity.BuildBranch, rm, ctx)
+	err = p.Process(&entity.ProjectBranch{}, rm, ctx)
 	if err != nil {
 		t.Error(err)
 	}
@@ -183,18 +177,18 @@ func TestProcessCheckHashChange(t *testing.T) {
 	hash1 := p.Basic.Hash()
 
 	f = bytes.NewBufferString(`{
-		"name":"abc",
-		"directories":{
-			"a":{},
-			"b":{}
-		}
-	}`)
+			"name":"abc",
+			"directories":{
+				"a":{},
+				"b":{}
+			}
+		}`)
 	p, err = entity.Load(f)
 	if err != nil {
 		t.Error(err)
 	}
 
-	err = p.Process(entity.BuildBranch, rm, ctx)
+	err = p.Process(&entity.ProjectBranch{}, rm, ctx)
 	if err != nil {
 		t.Error(err)
 	}
