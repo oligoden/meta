@@ -108,7 +108,9 @@ var upCmd = &cobra.Command{
 		ctx = context.WithValue(ctx, entity.ContextKey("force"), forceFlag)
 		ctx = context.WithValue(ctx, entity.ContextKey("verbose"), verboseValue)
 
+		// the configuration is processed and graph build
 		fmt.Println("processing configuration")
+
 		fileWatcher, err := fsnotify.NewWatcher()
 		if err != nil {
 			fmt.Println("error starting file watcher", err)
@@ -138,7 +140,9 @@ var upCmd = &cobra.Command{
 			return
 		}
 
+		// the project is build
 		fmt.Println("building project")
+
 		for _, ref := range rm.ChangedRefs() {
 			if strings.HasPrefix(ref.Identifier(), "file:") {
 				filename := filepath.Join(workLocation, ref.Identifier()[5:])
@@ -163,7 +167,9 @@ var upCmd = &cobra.Command{
 		done := make(chan bool)
 
 		fmt.Println("READY")
+		// any changes to files are watched
 		fmt.Println("watching for changes")
+
 		go func() {
 			run := true
 			metafileChange := false
