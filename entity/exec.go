@@ -40,9 +40,11 @@ func (e cle) Output() string {
 	output := fmt.Sprintf("action %s was run", e.Name)
 	if e.STDOut.String() != "" {
 		output += "\nstdout: " + e.STDOut.String()
+		e.STDOut.Reset()
 	}
 	if e.STDErr.String() != "" {
 		output += "\nstderr: " + e.STDErr.String()
+		e.STDErr.Reset()
 	}
 	return output
 }
