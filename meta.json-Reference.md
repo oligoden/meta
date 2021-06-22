@@ -1,6 +1,6 @@
 # The meta.json Configuration Reference
 
-## Table of Contents
+## Index
 
 * [Structure](https://github.com/oligoden/meta/blob/master/meta.json-Reference.md#structure)
   * [File Creation](https://github.com/oligoden/meta/blob/master/meta.json-Reference.md#file-creation)
@@ -17,26 +17,31 @@ The config file defines the project at the top level. The project structure is:
 {
   "name": "project-name",
   "directories": {},
+  "files": {},
   "execs": {},
 }
 ```
 
 ### File Creation
 
-File structures are specified within an object with key `directories`.
-The `directories` object can contain key-value pairs of multiple directories
-that that represent directories in the project.
+File structures are specified within json objects with keys `directories` and `files`.
+The `directories` object can contain key-value pairs of multiple directories that
+represent directories in the project.
 
 ```json
 {
   "directories": {
     "dir-name": {},
     "dir-name": {},
+  },
+  "files": {
+    "file-name.ext": {},
+    "file-name.ext": {},
   }
 }
 ```
 
-The `directories` can contain child `directories` objects, aswell as `files` objects as key-value pairs.
+The `directories` can contain child `directories` objects, as well as `files` objects as key-value pairs.
 These are the files that will be built.
 
 ```json
@@ -57,10 +62,9 @@ These are the files that will be built.
 }
 ```
 
-By default, a file in the work directory
-will be parsed and written to a file (named with the file key)
-and placed under a directory (named with the directory key)
-in the project root directory.
+By default, a file in the source directory
+will be parsed and written to a file (named as the file key)
+and placed in the destination directory (with the same name).
 
 ```json
 {
@@ -72,27 +76,33 @@ in the project root directory.
       }
     },
     "two": {
-      "files": {
-        "ccc.ext": {}
-      },
       "directories": {
-        "six": {
+        "look": {
           "files": {
-            "jjj.ext": {}
+            "cat.ext": {}
           }
         }
+      },
+      "files": {
+        "ccc.ext": {}
       }
     }
+  },
+  "files": {
+    "ddd.ext": {},
+    "eee.ext": {}
   }
 }
 ```
 will build to:
 
 ```
-./meta/one/aaa.ext -> ./one/aaa.ext
-./meta/one/bbb.ext -> ./one/bbb.ext
-./meta/two/ccc.ext -> ./two/ccc.ext
-./meta/two/six/jjj.ext -> ./two/six/jjj.ext
+./one/aaa.ext      -> ./dst/one/aaa.ext
+./one/bbb.ext      -> ./dst/one/bbb.ext
+./two/ccc.ext      -> ./dst/two/ccc.ext
+./two/look/cat.ext -> ./dst/two/look/cat.ext
+./ddd.ext          -> ./dst/ddd.ext
+./eee.ext          -> ./dst/eee.ext
 ```
 
 #### File Location Modifications

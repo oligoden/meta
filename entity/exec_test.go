@@ -11,6 +11,7 @@ import (
 )
 
 func TestExec(t *testing.T) {
+	t.Skip()
 	cfg := `{
 		"directories": {
 			"a": {

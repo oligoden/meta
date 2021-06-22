@@ -29,6 +29,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/fsnotify/fsnotify"
 	"github.com/oligoden/meta/entity"
 	"github.com/oligoden/meta/refmap"
 
@@ -50,10 +51,11 @@ Use the force flag (-f) to force rebuilding of all files.`,
 		}
 
 		verboseValue, _ := cmd.Flags().GetInt("verbose")
-		if verboseValue >= 1 {
-			fmt.Println("Loading metafile...")
+		if verboseValue > 0 {
+			fmt.Println("verbosity level", verboseValue)
 		}
 
+		fmt.Println("loading metafile")
 		f, err := os.Open(metaFileName)
 		if err != nil {
 			log.Fatalln(err)
@@ -67,7 +69,7 @@ Use the force flag (-f) to force rebuilding of all files.`,
 		}
 		f.Close()
 
-		metaOverrideFileName := strings.TrimSuffix(metaFileName, filepath.Ext(metaFileName)) + "-override" + filepath.Ext(metaFileName)
+		metaOverrideFileName := strings.TrimSuffix(metaFileName, filepath.Ext(metaFileName)) + ".override" + filepath.Ext(metaFileName)
 
 		f, err = os.Open(metaOverrideFileName)
 		if err != nil {
@@ -78,10 +80,13 @@ Use the force flag (-f) to force rebuilding of all files.`,
 		} else {
 			err = p.Load(f)
 			if err != nil {
-				log.Fatalln("error loading file", metaOverrideFileName, err)
+				log.Fatalln("error loading file", metaFileName, err)
 				return
 			}
 			f.Close()
+		}
+
+		if verboseValue == 3 {
 		}
 
 		workLocation, err := cmd.Flags().GetString("work")
@@ -92,10 +97,6 @@ Use the force flag (-f) to force rebuilding of all files.`,
 
 		if workLocation == "" {
 			workLocation = p.WorkLocation
-		}
-
-		if workLocation == "" {
-			workLocation = "work"
 		}
 
 		destinationLocation, err := cmd.Flags().GetString("dest")
@@ -112,13 +113,27 @@ Use the force flag (-f) to force rebuilding of all files.`,
 		ctx := context.WithValue(context.Background(), entity.ContextKey("source"), workLocation)
 		ctx = context.WithValue(ctx, entity.ContextKey("destination"), destinationLocation)
 		ctx = context.WithValue(ctx, entity.ContextKey("force"), forceFlag)
-		ctx = context.WithValue(ctx, entity.ContextKey("watching"), false)
-		ctx = context.WithValue(ctx, entity.ContextKey("startup"), true)
 		ctx = context.WithValue(ctx, entity.ContextKey("verbose"), verboseValue)
 
-		if verboseValue >= 1 {
-			fmt.Println("Processing configuration...")
+		// the configuration is processed and graph build
+		fmt.Println("processing configuration")
+
+		fileWatcher, err := fsnotify.NewWatcher()
+		if err != nil {
+			fmt.Println("error starting file watcher", err)
+			return
 		}
+		defer fileWatcher.Close()
+
+		metafileWatcher, err := fsnotify.NewWatcher()
+		if err != nil {
+			fmt.Println("error starting meta file watcher", err)
+			return
+		}
+		defer metafileWatcher.Close()
+		metafileWatcher.Add(metaFileName)
+
+		ctx = context.WithValue(ctx, entity.ContextKey("watcher"), metafileWatcher)
 
 		rm := refmap.Start()
 		err = p.Process(&entity.ProjectBranch{}, rm, ctx)
@@ -126,28 +141,38 @@ Use the force flag (-f) to force rebuilding of all files.`,
 			fmt.Println("error processing project", err)
 			return
 		}
-		rm.Evaluate()
-
-		if verboseValue >= 1 {
-			fmt.Println("Building project...")
+		err = rm.Evaluate()
+		if err != nil {
+			fmt.Println("error evaluating graph", err)
+			return
 		}
 
-		for _, ref := range rm.ChangedFiles() {
+		// the project is build
+		fmt.Println("building project")
+
+		for _, ref := range rm.ChangedRefs() {
+			if verboseValue >= 1 {
+				fmt.Println("performing", ref.Identifier())
+			}
+
+			if strings.HasPrefix(ref.Identifier(), "file:") {
+				filename := filepath.Join(workLocation, ref.Identifier()[5:])
+				fileWatcher.Add(filename)
+			}
+
 			err = ref.Perform(rm, ctx)
 			if err != nil {
-				fmt.Println("error performing file actions on", ref.Identifier(), err)
-				return
+				fmt.Println("error performing actions on", ref.Identifier(), err)
+				fmt.Println(ref.Output())
 			}
-		}
 
-		for _, ref := range rm.ChangedExecs() {
-			err = ref.Perform(rm, ctx)
-			if err != nil {
-				fmt.Println("error performing exec actions,", err)
-				fmt.Println(ref.Identifier())
-				return
+			if ref.Output() != "" {
+				fmt.Println(ref.Output())
 			}
 		}
+		rm.Finish()
+
+		fmt.Println("READY")
 	},
 }
 

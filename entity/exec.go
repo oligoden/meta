@@ -19,7 +19,7 @@ type cle struct {
 	Environment map[string]string `json:"env"`
 	STDOut      *bytes.Buffer
 	STDErr      *bytes.Buffer
-	Parent      Identifier `json:"-"`
+	Parent      ConfigReader `json:"-"`
 	state.Detect
 }
 
@@ -47,6 +47,10 @@ func (e cle) Output() string {
 		e.STDErr.Reset()
 	}
 	return output
+}
+
+func (e cle) Derived() (string, string) {
+	return "", ""
 }
 
 // func (e *cle) Process() error {

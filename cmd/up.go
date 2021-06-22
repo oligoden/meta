@@ -160,13 +160,13 @@ var upCmd = &cobra.Command{
 			}
 		}
 		rm.Finish()
+		fmt.Println("READY")
 
 		stopSignal := make(chan os.Signal, 1)
 		signal.Notify(stopSignal, os.Interrupt, os.Kill)
 		ctx = context.WithValue(ctx, entity.ContextKey("force"), true)
 		done := make(chan bool)
 
-		fmt.Println("READY")
 		// any changes to files are watched
 		fmt.Println("watching for changes")
 

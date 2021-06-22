@@ -13,137 +13,60 @@ import (
 	"github.com/oligoden/meta/refmap"
 )
 
-func TestFilePerforming(t *testing.T) {
-	d1 := []byte("add this\nthis should not be here")
-	ioutil.WriteFile("testing/a/aa/aaa.go", d1, 0644)
+func TestFile(t *testing.T) {
+	// d1 := []byte("add this\nthis should not be here")
+	// ioutil.WriteFile("testing/a/aa/aaa.go", d1, 0644)
 
 	testCases := []struct {
-		desc           string
-		file           string
-		parentDirCtrls string
-		dirCtrls       string
-		fileCtrls      string
-		output         bool
-		content        string
+		desc        string
+		file        string
+		parentCtrls string
+		fileCtrls   string
+		output      bool
+		content     string
 	}{
 		{
-			desc:    "default no output behaviour",
-			file:    "aaa.ext",
-			content: "abc aaa.ext",
-			output:  false,
+			desc:   "default no output behaviour",
+			file:   "aa.ext",
+			output: false,
 		},
-		// {
-		// 	desc:      "template execution output",
-		// 	file:      "aaa.ext",
-		// 	content:   "abc aaa.ext",
-		// 	fileCtrls: `"controls":{"behaviour":{"options":"output"}}`,
-		// 	output:    true,
-		// },
-		// {
-		// 	desc:    "test source property",
-		// 	file:    "aaa.ext",
-		// 	prps:    `"source":"./aaz.ext"`,
-		// 	content: "def",
-		// 	output:  true,
-		// },
-		// {
-		// 	desc:    "test source in sub directory",
-		// 	file:    "aaa.ext",
-		// 	prps:    `"source":"./sub/aax.ext"`,
-		// 	content: "ijk",
-		// 	output:  true,
-		// },
-		// {
-		// 	desc:    "test source in parent directory",
-		// 	file:    "aab.ext",
-		// 	prps:    `"source":"aa.ext"`,
-		// 	content: "abc",
-		// 	output:  true,
-		// },
-		// {
-		// 	desc:    "test removal of .tmpl",
-		// 	file:    "aaa.ext.tmpl",
-		// 	content: "ghi",
-		// 	output:  true,
-		// },
-		// {
-		// 	desc:    "test copy only set on file",
-		// 	file:    "aaa.ext",
-		// 	prps:    `"settings":"copy-only"`,
-		// 	content: "abc {{.Filename}}",
-		// },
-		// {
-		// 	desc:    "test templates on file",
-		// 	file:    "aa-comp.ext",
-		// 	prps:    `"templates":["a/aa/aa-incl.ext"]`,
-		// 	content: "yul gar jom",
-		// 	output:  true,
-		// },
-		// {
-		// 	desc:    "test copy only set on directory",
-		// 	file:    "aaa.ext",
-		// 	dirControls: `copy-only`,
-		// 	content: "abc {{.Filename}}",
-		// },
-		// {
-		// 	desc:         "test copy only set on directory",
-		// 	file:         "aaa.ext",
-		// 	fileControls: `"controls":{"behaviour":{"options":"copy","output":true}},`,
-		// 	content:      "abc {{.Filename}}",
-		// 	output:       true,
-		// },
-		// {
-		// 	desc:         "test no output set on directory",
-		// 	file:         "aaa.ext",
-		// 	fileControls: `"controls":{"behaviour":{"output":false}},`,
-		// 	output:       false,
-		// },
-		// {
-		// 	desc: "test line inclusion control of .go files",
-		// 	file: "aaa.go.tmpl",
-		// 	// prps:    `"settings":"comment-filter"`,
-		// 	fileControls: `"controls":{"behaviour":{"filters":{"comment-filter":{}}, "output":true}},`,
-		// 	content:      "add this\n",
-		// 	output:       true,
-		// },
+		{
+			desc:      "output set on file",
+			file:      "aa.ext",
+			content:   "abc",
+			fileCtrls: `"controls":{"behaviour":{"options":"output"}}`,
+			output:    true,
+		},
+		{
+			desc:        "output set on parent",
+			file:        "aa.ext",
+			content:     "abc",
+			parentCtrls: `"controls":{"behaviour":{"options":"output"}},`,
+			output:      true,
+		},
 	}
 
 	for _, tC := range testCases {
-		dstFilename := strings.TrimSuffix("a/aa/"+tC.file, ".tmpl")
+		dstFilename := strings.TrimSuffix(tC.file, ".tmpl")
 
 		t.Run(tC.desc, func(t *testing.T) {
 			str := `{
-				"directories": {
-					"a": {
-						%s
-						"directories": {
-							"aa": {
-								%s
-								"files": {
-									"%s": {%s}
-								}
-							}
-						}
-					}
+				%s
+				"files": {
+					"%s": {%s}
 				}
 			}`
-			str = fmt.Sprintf(str, tC.parentDirCtrls, tC.dirCtrls, tC.file, tC.fileCtrls)
+			str = fmt.Sprintf(str, tC.parentCtrls, tC.file, tC.fileCtrls)
 
-			m := &entity.Basic{}
-			err := json.Unmarshal([]byte(str), &m)
+			n := &entity.Basic{}
+			err := json.Unmarshal([]byte(str), &n)
 			if err != nil {
 				t.Error("error unmarshalling,", err)
 			}
-			m.Name = "project:name"
-
-			dir := m.Directories["a"]
-			dir.Parent = m
-			dir.DstDerived = "a"
-			dir.SrcDerived = "a"
-			dir.Name = "a"
+			n.Name = "node:name"
 
 			rm := refmap.Start()
-			rm.AddRef("project:name", m)
+			rm.AddRef("node:name", n)
 
 			ctx := context.Background()
 			ctx = context.WithValue(ctx, entity.ContextKey("source"), "testing/work")
@@ -152,23 +75,37 @@ func TestFilePerforming(t *testing.T) {
 			ctx = context.WithValue(ctx, entity.ContextKey("force"), true)
 			ctx = context.WithValue(ctx, entity.ContextKey("verbose"), 0)
 
-			err = dir.Process(&entity.Branch{}, rm, ctx)
+			err = n.Process(&entity.Branch{}, rm, ctx)
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			file, ok := dir.Directories["aa"].Files[tC.file]
+			file, ok := n.Files[tC.file]
 			if !ok {
 				t.Fatalf(`no file "%s"`, tC.file)
+			}
+			// fmt.Printf("%+v\n", n)
+			fmt.Printf("file %+v\n", file)
+			fmt.Printf("file.Controls %+v\n", file.Controls)
+			fmt.Printf("file.Controls.Behaviour %+v\n\n", file.Controls.Behaviour)
+
+			exp := "file:" + tC.file
+			got := file.Identifier()
+			if exp != got {
+				t.Errorf(`expected "%s", got "%s"`, exp, got)
+			}
+
+			if file.Hash() == "" {
+				t.Error("expected non empty hash")
+			}
+
+			if file.OptionsContain("output") != tC.output {
+				t.Fatal("output flag does not match")
 			}
 
 			err = file.Perform(rm, ctx)
 			if err != nil {
 				t.Fatal(err)
-			}
-
-			if file.OptionsContain("output") != tC.output {
-				t.Fatal("output flag does not match")
 			}
 
 			if file.OptionsContain("output") {

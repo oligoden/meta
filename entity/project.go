@@ -45,6 +45,10 @@ func (p Project) Identifier() string {
 	return "prj:" + p.Name
 }
 
+func (p Project) Derived() (string, string) {
+	return p.SrcDerived, p.DstDerived
+}
+
 func (p *Project) Process(bb BranchBuilder, rm refmap.Mutator, ctx context.Context) error {
 
 	err := p.calculateHash()
@@ -63,8 +67,7 @@ func (p *Project) Process(bb BranchBuilder, rm refmap.Mutator, ctx context.Conte
 		if dir.Controls.Behaviour == nil {
 			dir.Controls.Behaviour = &behaviour{}
 			if p.Controls.Behaviour != nil {
-				dir.Controls.Behaviour.Action = p.Controls.Behaviour.Action
-				dir.Controls.Behaviour.Output = p.Controls.Behaviour.Output
+				dir.Controls.Behaviour.Options = p.Controls.Behaviour.Options
 				if dir.Controls.Behaviour.Filters == nil {
 					dir.Controls.Behaviour.Filters = make(map[string]map[string]string)
 				}
@@ -95,6 +98,12 @@ func (p *Project) Process(bb BranchBuilder, rm refmap.Mutator, ctx context.Conte
 				})
 			}
 		}
+	}
+
+	p.This = p
+	err = p.Basic.Process(bb, rm, ctx)
+	if err != nil {
+		return err
 	}
 
 	for name, e := range p.Execs {
@@ -151,6 +160,30 @@ func (p *Project) Process(bb BranchBuilder, rm refmap.Mutator, ctx context.Conte
 				match := m.End.MatchString(dir.Identifier())
 				if match {
 					err := rm.MapRef(m.StartSet, dir.Identifier())
+					if err != nil {
+						return err
+					}
+				}
+			}
+		}
+	}
+
+	// look for files matching posible mappings
+	for _, file := range p.Files {
+		for _, m := range p.PosibleMappings {
+			if m.StartSet == "" && file.Identifier() != m.EndSet {
+				match := m.Start.MatchString(file.Identifier())
+				if match {
+					err := rm.MapRef(file.Identifier(), m.EndSet)
+					if err != nil {
+						return err
+					}
+				}
+			}
+			if m.EndSet == "" && file.Identifier() != m.StartSet {
+				match := m.End.MatchString(file.Identifier())
+				if match {
+					err := rm.MapRef(m.StartSet, file.Identifier())
 					if err != nil {
 						return err
 					}

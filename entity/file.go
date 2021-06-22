@@ -16,20 +16,13 @@ import (
 )
 
 type file struct {
-	Name      string   `json:"name"`
-	Source    string   `json:"source"`
-	Templates []string `json:"templates"`
-
-	// Settings can contain:
-	// - "copy-only" to only copy file
-	// - "parse-dir" to parse all templates in directory
-	// - "comment-filter" to apply comment line filter
-	// - "no-output" to skip file output
-	Settings string      `json:"settings"`
-	Controls controls    `json:"controls"`
-	Template *Templax    `json:"-"`
-	Parent   Identifier  `json:"-"`
-	Branch   interface{} `json:"-"`
+	Name      string       `json:"name"`
+	Source    string       `json:"source"`
+	Templates []string     `json:"templates"`
+	Controls  controls     `json:"controls"`
+	Template  *Templax     `json:"-"`
+	Parent    ConfigReader `json:"-"`
+	Branch    interface{}  `json:"-"`
 	state.Detect
 }
 
@@ -46,31 +39,31 @@ func (file file) Identifier() string {
 	return "file:" + file.Source
 }
 
-func (b file) Output() string {
-	return ""
-}
-
 func (file *file) Perform(rm refmap.Grapher, ctx context.Context) error {
 	verboseValue := ctx.Value(ContextKey("verbose")).(int)
-	parentDS := file.Parent.(*Directory)
+	srcFilename := filepath.Base(file.Source)
 
-	if has(parentDS, file, "no-output") {
+	if !file.OptionsContain(OutputBehaviour) {
+		if verboseValue >= 2 {
+			fmt.Println("not outputing", srcFilename)
+		}
 		return nil
 	}
 
-	RootSrcDir := ctx.Value(ContextKey("source")).(string)
-	srcFilename := filepath.Base(file.Source)
 	if verboseValue >= 1 {
 		fmt.Println("writing", srcFilename)
 	}
-	defaultSrcDir := parentDS.SrcDerived
+
+	parentDS := file.Parent
+	defaultSrcDir, defaultDstDir := parentDS.Derived()
+
+	RootSrcDir := ctx.Value(ContextKey("source")).(string)
 	srcDirectory := filepath.Join(RootSrcDir, defaultSrcDir)
 	srcDirSpecific := filepath.Join(RootSrcDir, filepath.Dir(file.Source))
 	srcFileSpecific := filepath.Join(srcDirSpecific, srcFilename)
 
 	RootDstDir := ctx.Value(ContextKey("destination")).(string)
 	dstFilename := strings.TrimSuffix(file.Name, ".tmpl")
-	defaultDstDir := parentDS.DstDerived
 	dstDirectory := filepath.Join(RootDstDir, defaultDstDir)
 	dstFile := filepath.Join(dstDirectory, dstFilename)
 
@@ -86,7 +79,7 @@ func (file *file) Perform(rm refmap.Grapher, ctx context.Context) error {
 
 	contentBuf := &bytes.Buffer{}
 
-	if has(parentDS, file, "copy-only") || file.Controls.Behaviour.Action == CopyBehaviour {
+	if file.OptionsContain(CopyBehaviour) {
 		r, err := os.Open(srcFileSpecific)
 		if err != nil {
 			return err
@@ -106,7 +99,7 @@ func (file *file) Perform(rm refmap.Grapher, ctx context.Context) error {
 			return err
 		}
 
-		if has(parentDS, file, "parse-dir") {
+		if file.OptionsContain("parse-dir") {
 			err = file.Template.Prepare(srcDirectory)
 			if err != nil {
 				if !strings.Contains(err.Error(), "template: pattern matches no files") {
@@ -149,7 +142,7 @@ func (file *file) Perform(rm refmap.Grapher, ctx context.Context) error {
 
 	outputBuf := &bytes.Buffer{}
 
-	if has(parentDS, file, "comment-filter") || file.Controls.Behaviour.Filters.Has("comment-filter") {
+	if file.ContainsFilter("comment-filter") {
 		err := lineFilter(contentBuf, outputBuf)
 		if err != nil {
 			return fmt.Errorf("error with line control, %w", err)
@@ -175,8 +168,19 @@ func (file *file) Perform(rm refmap.Grapher, ctx context.Context) error {
 	return nil
 }
 
-func has(d *Directory, f *file, s string) bool {
-	return strings.Contains(d.Settings, s) || strings.Contains(f.Settings, s)
+func (f file) OptionsContain(b string) bool {
+	return f.Parent.OptionsContain(b) || f.Controls.Behaviour.Options == b
+}
+
+func (f file) ContainsFilter(filter string) bool {
+	if _, has := f.Controls.Behaviour.Filters[filter]; has {
+		return true
+	}
+	return false
+}
+
+func (f file) Output() string {
+	return ""
 }
 
 func lineFilter(r, w *bytes.Buffer) error {
@@ -190,19 +194,10 @@ func lineFilter(r, w *bytes.Buffer) error {
 					break
 				}
 			}
-		} else if strings.HasPrefix(strings.TrimSpace(line), "//xxx") {
-			// depreciated
-			for scanner.Scan() {
-				line = scanner.Text()
-				if strings.HasPrefix(strings.TrimSpace(line), "//end") {
-					break
-				}
-			}
 		} else if strings.Contains(strings.TrimSpace(line), "//-") {
 			// skip line
-		} else if strings.Contains(strings.TrimSpace(line), "//xx") {
-			// depreciated
-			// skip line
+		} else if strings.Contains(strings.TrimSpace(line), "//>") {
+			fmt.Fprintln(w, strings.Replace(line, "//>", "//-", 1))
 		} else if strings.HasPrefix(strings.TrimSpace(line), "//+++") {
 			for scanner.Scan() {
 				line = scanner.Text()

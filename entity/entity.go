@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -15,14 +16,26 @@ import (
 
 type ContextKey string
 
+type ConfigReader interface {
+	Identifier() string
+	Derived() (string, string)
+	OptionsContain(string) bool
+	ContainsFilter(string) bool
+}
+
 type Basic struct {
 	Name        string                `json:"name"`
+	SrcDerived  string                `json:"-"`
+	DstDerived  string                `json:"-"`
 	Directories map[string]*Directory `json:"directories"`
+	Files       map[string]*file      `json:"files"`
 	Execs       map[string]*cle       `json:"execs"`
 	// Import      string                `json:"import"`
-	Controls        controls   `json:"controls"`
-	Parent          Identifier `json:"-"`
-	PosibleMappings []Mapping  `json:"-"`
+	Controls        controls     `json:"controls"`
+	This            ConfigReader `json:"-"`
+	Parent          ConfigReader `json:"-"`
+	PosibleMappings []Mapping    `json:"-"`
+	Settings        string       `json:"settings"`
 	state.Detect
 }
 
@@ -44,7 +57,14 @@ type Regexp struct {
 }
 
 func (r *Regexp) UnmarshalText(text []byte) error {
-	rr, err := Compile(string(text))
+	search := string(text)
+	search = fmt.Sprintf("^%s$", search)
+	re := regexp.MustCompile(`\.`)
+	search = re.ReplaceAllString(search, `\.`)
+	re = regexp.MustCompile(`\*`)
+	search = re.ReplaceAllString(search, `.*`)
+
+	rr, err := Compile(search)
 	if err != nil {
 		return err
 	}
@@ -63,38 +83,121 @@ func Compile(expr string) (*Regexp, error) {
 const (
 	NormalBehaviour = ""
 	CopyBehaviour   = "copy"
+	OutputBehaviour = "output"
 )
 
 type behaviour struct {
-	Action     string  `json:"action"`
-	Output     bool    `json:"output"`
+	Options    string  `json:"options"`
 	Filters    filters `json:"filters"`
 	Recurrence int     `json:"recurrence"`
 }
 
 type filters map[string]map[string]string
 
-func (fs filters) Has(f string) bool {
-	if _, has := fs[f]; has {
+func (b Basic) Identifier() string {
+	return b.Name
+}
+
+func (b Basic) ContainsFilter(filter string) bool {
+	if _, has := b.Controls.Behaviour.Filters[filter]; has {
 		return true
 	}
 	return false
 }
 
-func (b Basic) Identifier() string {
-	return b.Name
-}
+func (b Basic) OptionsContain(o string) bool {
+	if b.Controls.Behaviour == nil {
+		return false
+	}
 
-func (b Basic) Output() string {
-	return ""
+	return strings.Contains(b.Controls.Behaviour.Options, o)
 }
 
 func (Basic) Perform(refmap.Grapher, context.Context) error {
 	return nil
 }
 
-type Identifier interface {
-	Identifier() string
+func (b Basic) Output() string {
+	return ""
+}
+
+func (b Basic) Derived() (string, string) {
+	return b.SrcDerived, b.DstDerived
+}
+
+func (n *Basic) Process(bb BranchBuilder, rm refmap.Mutator, ctx context.Context) error {
+	if n.Controls.Behaviour == nil {
+		n.Controls.Behaviour = &behaviour{}
+	}
+	return n.processFiles(bb, rm, ctx)
+}
+
+func (n *Basic) processFiles(bb BranchBuilder, rm refmap.Mutator, ctx context.Context) error {
+	for name, file := range n.Files {
+		file.Name = name
+		file.Parent = n.This
+
+		if file.Controls.Behaviour == nil {
+			file.Controls.Behaviour = &behaviour{}
+
+			if n.Controls.Behaviour != nil {
+				file.Controls.Behaviour.Options = n.Controls.Behaviour.Options
+				if file.Controls.Behaviour.Filters == nil {
+					file.Controls.Behaviour.Filters = make(map[string]map[string]string)
+				}
+				for k, f := range n.Controls.Behaviour.Filters {
+					file.Controls.Behaviour.Filters[k] = f
+				}
+			}
+		}
+
+		err := file.calculateHash()
+		if err != nil {
+			return err
+		}
+
+		_, err = bb.Build(file)
+		if err != nil {
+			return fmt.Errorf("building branch, %w", err)
+		}
+		file.Branch = bb
+
+		if file.Source == "" {
+			file.Source = filepath.Join(n.SrcDerived, name)
+		} else if strings.HasPrefix(file.Source, "./") {
+			file.Source = filepath.Join(n.SrcDerived, file.Source)
+		}
+
+		for _, m := range n.Controls.Mappings {
+			matchStart := m.Start.MatchString(file.Identifier())
+			matchEnd := m.End.MatchString(file.Identifier())
+			if matchStart && matchEnd {
+				return fmt.Errorf("directory matches start and end reference")
+			}
+			if matchStart {
+				n.PosibleMappings = append(n.PosibleMappings, Mapping{
+					StartSet:   file.Identifier(),
+					End:        m.End,
+					Recurrence: m.Recurrence,
+				})
+			}
+			if matchEnd {
+				n.PosibleMappings = append(n.PosibleMappings, Mapping{
+					Start:      m.Start,
+					EndSet:     file.Identifier(),
+					Recurrence: m.Recurrence,
+				})
+			}
+		}
+
+		rm.AddRef("file:"+file.Source, file)
+		err = rm.MapRef(file.Parent.Identifier(), "file:"+file.Source)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 type Branch struct {
@@ -114,7 +217,7 @@ func (b *Branch) Build(e interface{}) (interface{}, error) {
 		b.Directories = []string{}
 	}
 
-	for {
+	for i := 0; i < 40; i++ {
 		switch v := ent.(type) {
 		case nil:
 			return nil, fmt.Errorf("encountered nil")
@@ -128,6 +231,9 @@ func (b *Branch) Build(e interface{}) (interface{}, error) {
 			return ent, nil
 		}
 	}
+
+	fmt.Printf("branch depth exceeded, stuck at %+v\n", ent)
+	return ent, fmt.Errorf("branch depth exceeded")
 }
 
 type TemplateMethods struct {

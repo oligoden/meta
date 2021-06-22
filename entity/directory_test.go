@@ -343,14 +343,14 @@ func TestDirFileBehaviourParams(t *testing.T) {
 	}`
 
 	testCases := []struct {
-		desc         string
-		ctrl         string
-		dirBhAction  string
-		dirBhOutput  bool
-		dirBhFilter  map[string]map[string]string
-		fileBhAction string
-		fileBhOutput bool
-		fileBhFilter map[string]map[string]string
+		desc          string
+		ctrl          string
+		dirBhOptions  string
+		dirBhOutput   bool
+		dirBhFilter   map[string]map[string]string
+		fileBhOptions string
+		fileBhOutput  bool
+		fileBhFilter  map[string]map[string]string
 	}{
 		{
 			desc: "none",
@@ -363,11 +363,11 @@ func TestDirFileBehaviourParams(t *testing.T) {
 			// dirBhFilter: "[]",
 		},
 		{
-			desc:        "copy behaviour",
-			ctrl:        `"behaviour":{"action":"copy"}`,
-			dirBhAction: entity.CopyBehaviour,
+			desc:         "copy behaviour",
+			ctrl:         `"behaviour":{"options":"copy"}`,
+			dirBhOptions: entity.CopyBehaviour,
 			// dirBhFilter:  "[]",
-			fileBhAction: entity.CopyBehaviour,
+			fileBhOptions: entity.CopyBehaviour,
 		},
 		{
 			desc:        "output behaviour",
@@ -398,17 +398,17 @@ func TestDirFileBehaviourParams(t *testing.T) {
 				t.Fatal("expected behaviour")
 			}
 
-			exp := tC.dirBhAction
-			got := dirAA.Controls.Behaviour.Action
+			exp := tC.dirBhOptions
+			got := dirAA.Controls.Behaviour.Options
 			if got != exp {
 				t.Errorf("expected '%s', got '%s'", exp, got)
 			}
 
-			exp = fmt.Sprintf("%v", tC.dirBhOutput)
-			got = fmt.Sprintf("%v", dirAA.Controls.Behaviour.Output)
-			if got != exp {
-				t.Errorf("expected '%s', got '%s'", exp, got)
-			}
+			// exp = fmt.Sprintf("%v", tC.dirBhOutput)
+			// got = fmt.Sprintf("%v", dirAA.Controls.Behaviour.Output)
+			// if got != exp {
+			// 	t.Errorf("expected '%s', got '%s'", exp, got)
+			// }
 
 			exp = fmt.Sprintf("%v", tC.dirBhFilter)
 			got = fmt.Sprintf("%v", dirAA.Controls.Behaviour.Filters)
@@ -423,16 +423,16 @@ func TestDirFileBehaviourParams(t *testing.T) {
 			if fileAA.Controls.Behaviour == nil {
 				t.Fatal("expected behaviour")
 			}
-			exp = tC.fileBhAction
-			got = fileAA.Controls.Behaviour.Action
+			exp = tC.fileBhOptions
+			got = fileAA.Controls.Behaviour.Options
 			if got != exp {
 				t.Errorf("expected '%s', got '%s'", exp, got)
 			}
-			exp = fmt.Sprintf("%v", tC.fileBhOutput)
-			got = fmt.Sprintf("%v", fileAA.Controls.Behaviour.Output)
-			if got != exp {
-				t.Errorf("expected '%s', got '%s'", exp, got)
-			}
+			// exp = fmt.Sprintf("%v", tC.fileBhOutput)
+			// got = fmt.Sprintf("%v", fileAA.Controls.Behaviour.Output)
+			// if got != exp {
+			// 	t.Errorf("expected '%s', got '%s'", exp, got)
+			// }
 			exp = fmt.Sprintf("%v", tC.fileBhFilter)
 			got = fmt.Sprintf("%v", fileAA.Controls.Behaviour.Filters)
 			if got != exp {

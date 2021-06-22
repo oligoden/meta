@@ -3,6 +3,7 @@ package entity
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,20 +13,17 @@ import (
 )
 
 type Directory struct {
-	SrcOverride string           `json:"src-ovr"`
-	DstOverride string           `json:"dst-ovr"`
-	Files       map[string]*file `json:"files"`
-	SrcDerived  string           `json:"-"`
-	DstDerived  string           `json:"-"`
-	Import      *configImport    `json:"import"`
+	SrcOverride string        `json:"src-ovr"`
+	DstOverride string        `json:"dst-ovr"`
+	Import      *configImport `json:"import"`
 
 	// Settings can contain:
 	// - "copy-only" to only copy file
 	// - "parse-dir" to parse all templates in directory
 	// - "comment-filter" to apply comment line filter
 	// - "no-output" to skip file output
-	Settings string   `json:"settings"`
-	LinkTo   []string `json:"linkto"`
+
+	LinkTo []string `json:"linkto"`
 	Basic
 }
 
@@ -34,6 +32,30 @@ type configImport struct {
 
 func (d Directory) Identifier() string {
 	return "dir:" + d.SrcDerived + ":" + d.Name
+}
+
+func (d Directory) ContainsFilter(filter string) bool {
+	if _, has := d.Controls.Behaviour.Filters[filter]; has {
+		return true
+	}
+	return false
+}
+
+func (d Directory) Derived() (string, string) {
+	return d.SrcDerived, d.DstDerived
+}
+
+func (d Directory) Output() string {
+	return ""
+}
+
+func (d Directory) BehaviourOptionsContain(o string) bool {
+	if d.Controls.Behaviour == nil {
+		log.Println("behaviour not set for", d.Name)
+		return false
+	}
+
+	return strings.Contains(d.Controls.Behaviour.Options, o)
 }
 
 func (d *Directory) calculateHash() error {
@@ -76,6 +98,7 @@ func (d *Directory) Process(bb BranchBuilder, rm refmap.Mutator, ctx context.Con
 		if d.Directories == nil {
 			d.Directories = map[string]*Directory{}
 		}
+
 		for k, v := range p.Directories {
 			d.Directories[k] = v
 			updatePaths(d.Directories[k], d.SrcDerived)
@@ -102,8 +125,7 @@ func (d *Directory) Process(bb BranchBuilder, rm refmap.Mutator, ctx context.Con
 		if dir.Controls.Behaviour == nil {
 			dir.Controls.Behaviour = &behaviour{}
 			if d.Controls.Behaviour != nil {
-				dir.Controls.Behaviour.Action = d.Controls.Behaviour.Action
-				dir.Controls.Behaviour.Output = d.Controls.Behaviour.Output
+				dir.Controls.Behaviour.Options = d.Controls.Behaviour.Options
 				if dir.Controls.Behaviour.Filters == nil {
 					dir.Controls.Behaviour.Filters = make(map[string]map[string]string)
 				}
@@ -136,68 +158,10 @@ func (d *Directory) Process(bb BranchBuilder, rm refmap.Mutator, ctx context.Con
 		}
 	}
 
-	for name, file := range d.Files {
-		file.Name = name
-		file.Parent = d
-
-		if file.Controls.Behaviour == nil {
-			file.Controls.Behaviour = &behaviour{}
-			if d.Controls.Behaviour != nil {
-				file.Controls.Behaviour.Action = d.Controls.Behaviour.Action
-				file.Controls.Behaviour.Output = d.Controls.Behaviour.Output
-				if file.Controls.Behaviour.Filters == nil {
-					file.Controls.Behaviour.Filters = make(map[string]map[string]string)
-				}
-				for k, f := range d.Controls.Behaviour.Filters {
-					file.Controls.Behaviour.Filters[k] = f
-				}
-			}
-		}
-
-		err := file.calculateHash()
-		if err != nil {
-			return err
-		}
-
-		_, err = bb.Build(file)
-		if err != nil {
-			return fmt.Errorf("building branch, %w", err)
-		}
-		file.Branch = bb
-
-		if file.Source == "" {
-			file.Source = filepath.Join(d.SrcDerived, name)
-		} else if strings.HasPrefix(file.Source, "./") {
-			file.Source = filepath.Join(d.SrcDerived, file.Source)
-		}
-
-		for _, m := range d.Controls.Mappings {
-			matchStart := m.Start.MatchString(file.Identifier())
-			matchEnd := m.End.MatchString(file.Identifier())
-			if matchStart && matchEnd {
-				return fmt.Errorf("directory matches start and end reference")
-			}
-			if matchStart {
-				d.PosibleMappings = append(d.PosibleMappings, Mapping{
-					StartSet:   file.Identifier(),
-					End:        m.End,
-					Recurrence: m.Recurrence,
-				})
-			}
-			if matchEnd {
-				d.PosibleMappings = append(d.PosibleMappings, Mapping{
-					Start:      m.Start,
-					EndSet:     file.Identifier(),
-					Recurrence: m.Recurrence,
-				})
-			}
-		}
-
-		rm.AddRef("file:"+file.Source, file)
-		err = rm.MapRef(file.Parent.Identifier(), "file:"+file.Source)
-		if err != nil {
-			return err
-		}
+	d.This = d
+	err = d.Basic.Process(bb, rm, ctx)
+	if err != nil {
+		return err
 	}
 
 	for name, e := range d.Execs {
