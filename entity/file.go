@@ -6,71 +6,142 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
+	"text/template"
 
 	"github.com/oligoden/meta/entity/state"
 	"github.com/oligoden/meta/refmap"
 )
 
-type file struct {
-	Name      string       `json:"name"`
-	Source    string       `json:"source"`
-	Templates []string     `json:"templates"`
-	Controls  controls     `json:"controls"`
-	Template  *Templax     `json:"-"`
-	Parent    ConfigReader `json:"-"`
-	Branch    interface{}  `json:"-"`
+type File struct {
+	Name     string             `json:"name"`
+	Source   string             `json:"source"`
+	Controls controls           `json:"controls"`
+	Template *template.Template `json:"-"`
+	Parent   ConfigReader       `json:"-"`
+	Branch   interface{}        `json:"-"`
 	state.Detect
 }
 
-func (file *file) calculateHash() error {
-	fileTemp := *file
-	err := file.HashOf(fileTemp)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (file file) Identifier() string {
+func (file File) Identifier() string {
 	return "file:" + file.Source
 }
 
-func (file *file) Perform(rm refmap.Grapher, ctx context.Context) error {
-	verboseValue := ctx.Value(ContextKey("verbose")).(int)
+func (e *File) Process(bb BranchBuilder, rm refmap.Mutator, ctx context.Context) error {
+	if e.Controls.Behaviour == nil {
+		e.Controls.Behaviour = &behaviour{}
+	}
+	if e.Controls.Behaviour.Filters == nil {
+		e.Controls.Behaviour.Filters = filters{}
+	}
+
+	options := []string{}
+	for _, option := range strings.Split(e.Parent.Options(), ",") {
+		if !strings.Contains(e.Controls.Behaviour.Options, option) {
+			options = append(options, option)
+		}
+	}
+
+	for _, option := range strings.Split(e.Controls.Behaviour.Options, ",") {
+		if !strings.HasPrefix(option, "-") {
+			options = append(options, option)
+		}
+	}
+	e.Controls.Behaviour.Options = strings.Join(options, ",")
+
+	for i, filter := range e.Parent.Filters() {
+		if _, exist := e.Controls.Behaviour.Filters[i]; !exist {
+			e.Controls.Behaviour.Filters[i] = filter
+		}
+	}
+
+	err := e.HashOf()
+	if err != nil {
+		return err
+	}
+
+	_, err = bb.Build(e)
+	if err != nil {
+		return fmt.Errorf("building branch, %w", err)
+	}
+	e.Branch = bb
+
+	srcDerived, _ := e.Parent.Derived()
+	if e.Source == "" {
+		e.Source = filepath.Join(srcDerived, e.Name)
+	} //else if strings.HasPrefix(e.Source, "./") {
+	// 	e.Source = filepath.Join(parent.SrcDerived, e.Source)
+	// }
+
+	for _, m := range e.Parent.ControlMappings() {
+		matchStart := m.Start.MatchString(e.Identifier())
+		matchEnd := m.End.MatchString(e.Identifier())
+		if matchStart && matchEnd {
+			return fmt.Errorf("directory matches start and end reference")
+		}
+		if matchStart {
+			e.Parent.AddPosibleMapping(Mapping{
+				StartSet:   e.Identifier(),
+				End:        m.End,
+				Recurrence: m.Recurrence,
+			})
+		}
+		if matchEnd {
+			e.Parent.AddPosibleMapping(Mapping{
+				Start:      m.Start,
+				EndSet:     e.Identifier(),
+				Recurrence: m.Recurrence,
+			})
+		}
+	}
+
+	rm.AddRef(ctx, "file:"+e.Source, e)
+	err = rm.MapRef(ctx, e.Parent.Identifier(), "file:"+e.Source)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (file *File) Perform(rm refmap.Grapher, ctx context.Context) error {
+	verboseValue := ctx.Value(refmap.ContextKey("verbose")).(int)
 	srcFilename := filepath.Base(file.Source)
 
-	if !file.OptionsContain(OutputBehaviour) {
+	if !strings.Contains(file.Controls.Behaviour.Options, "output") {
 		if verboseValue >= 2 {
 			fmt.Println("not outputing", srcFilename)
 		}
 		return nil
 	}
 
-	if verboseValue >= 1 {
+	if verboseValue >= 3 {
 		fmt.Println("writing", srcFilename)
 	}
 
-	parentDS := file.Parent
-	defaultSrcDir, defaultDstDir := parentDS.Derived()
+	_, defaultDstDir := file.Parent.Derived()
+	defaultSrcDir, defaultDstDir := file.Parent.Derived()
 
-	RootSrcDir := ctx.Value(ContextKey("source")).(string)
+	RootSrcDir := ctx.Value(refmap.ContextKey("source")).(string)
 	srcDirectory := filepath.Join(RootSrcDir, defaultSrcDir)
-	srcDirSpecific := filepath.Join(RootSrcDir, filepath.Dir(file.Source))
-	srcFileSpecific := filepath.Join(srcDirSpecific, srcFilename)
+	srcFile := filepath.Join(srcDirectory, srcFilename)
+	// srcDirSpecific := filepath.Join(RootSrcDir, filepath.Dir(file.Source))
+	// srcFileSpecific := filepath.Join(srcDirSpecific, srcFilename)
 
-	RootDstDir := ctx.Value(ContextKey("destination")).(string)
+	RootDstDir := ctx.Value(refmap.ContextKey("destination")).(string)
 	dstFilename := strings.TrimSuffix(file.Name, ".tmpl")
 	dstDirectory := filepath.Join(RootDstDir, defaultDstDir)
 	dstFile := filepath.Join(dstDirectory, dstFilename)
 
-	if _, err := os.Stat(dstFile); err == nil {
-		if !ctx.Value(ContextKey("force")).(bool) {
-			return nil
-		}
+	_, err := os.Stat(dstFile)
+	if err == nil {
+		// 	if !ctx.Value(ContextKey("force")).(bool) {
+		// 		return nil
+		// 	}
 	} else if os.IsNotExist(err) {
 		os.MkdirAll(dstDirectory, os.ModePerm)
 	} else {
@@ -79,8 +150,8 @@ func (file *file) Perform(rm refmap.Grapher, ctx context.Context) error {
 
 	contentBuf := &bytes.Buffer{}
 
-	if file.OptionsContain(CopyBehaviour) {
-		r, err := os.Open(srcFileSpecific)
+	if strings.Contains(file.Controls.Behaviour.Options, "copy") {
+		r, err := os.Open(srcFile)
 		if err != nil {
 			return err
 		}
@@ -90,51 +161,32 @@ func (file *file) Perform(rm refmap.Grapher, ctx context.Context) error {
 			return err
 		}
 	} else {
-		if file.Template == nil {
-			file.Template = new(Templax)
-		}
-
-		err := file.Template.Prepare(srcFileSpecific)
+		fileContent, err := ioutil.ReadFile(srcFile)
 		if err != nil {
 			return err
 		}
 
-		if file.OptionsContain("parse-dir") {
-			err = file.Template.Prepare(srcDirectory)
-			if err != nil {
-				if !strings.Contains(err.Error(), "template: pattern matches no files") {
-					return err
-				}
-				log.Println(err)
-			}
+		tmpl, err := template.New(srcFile).Parse(string(fileContent))
+		if err != nil {
+			return err
 		}
 
 		for _, t := range rm.ParentFiles(file.Identifier()) {
-			f := strings.TrimPrefix(t, "file:")
-			err := file.Template.Prepare(filepath.Join(RootSrcDir, f))
+			filename := strings.TrimPrefix(t, "file:")
+			filename = filepath.Join(RootSrcDir, filename)
+
+			fileContent, err := ioutil.ReadFile(filename)
+			if err != nil {
+				return err
+			}
+
+			tmpl, err = tmpl.New(filename).Parse(string(fileContent))
 			if err != nil {
 				return err
 			}
 		}
 
-		for _, template := range file.Templates {
-			template = filepath.Join(strings.Split(template, "/")...)
-
-			err := file.Template.Prepare(filepath.Join(RootSrcDir, template))
-			if err != nil {
-				return err
-			}
-
-			for _, t := range rm.ParentFiles("file:" + template) {
-				f := strings.TrimPrefix(t, "file:")
-				err := file.Template.Prepare(filepath.Join(RootSrcDir, f))
-				if err != nil {
-					return err
-				}
-			}
-		}
-
-		err = file.Template.FExecute(contentBuf, srcFilename, file.Branch)
+		err = tmpl.Lookup(srcFile).Execute(contentBuf, file.Branch)
 		if err != nil {
 			return fmt.Errorf("error executing template, %w", err)
 		}
@@ -142,10 +194,10 @@ func (file *file) Perform(rm refmap.Grapher, ctx context.Context) error {
 
 	outputBuf := &bytes.Buffer{}
 
-	if file.ContainsFilter("comment-filter") {
-		err := lineFilter(contentBuf, outputBuf)
+	if file.ContainsFilter("comment") {
+		err := commentFilter(contentBuf, outputBuf)
 		if err != nil {
-			return fmt.Errorf("error with line control, %w", err)
+			return fmt.Errorf("error with comment filter, %w", err)
 		}
 	} else {
 		contentBuf.WriteTo(outputBuf)
@@ -168,22 +220,18 @@ func (file *file) Perform(rm refmap.Grapher, ctx context.Context) error {
 	return nil
 }
 
-func (f file) OptionsContain(b string) bool {
-	return f.Parent.OptionsContain(b) || f.Controls.Behaviour.Options == b
-}
-
-func (f file) ContainsFilter(filter string) bool {
-	if _, has := f.Controls.Behaviour.Filters[filter]; has {
+func (e File) ContainsFilter(filter string) bool {
+	if _, has := e.Controls.Behaviour.Filters[filter]; has {
 		return true
 	}
 	return false
 }
 
-func (f file) Output() string {
+func (f File) Output() string {
 	return ""
 }
 
-func lineFilter(r, w *bytes.Buffer) error {
+func commentFilter(r, w *bytes.Buffer) error {
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
 		line := scanner.Text()

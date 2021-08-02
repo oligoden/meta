@@ -2,16 +2,21 @@ package refmap
 
 import (
 	"context"
+	"fmt"
+	"os"
 
 	graph "github.com/oligoden/math-graph"
 	"github.com/oligoden/meta/entity/state"
 )
 
+type ContextKey string
+
 type Store struct {
-	Adds  chan *addOp
-	Maps  chan *mapOp
-	Sets  chan *SetOp
-	Nodes chan *nodesOp
+	Adds       chan *addOp
+	Maps       chan *mapOp
+	Sets       chan *SetOp
+	Nodes      chan *nodesOp
+	OutputChan chan struct{}
 	// Removed chan *RemovedOp
 	refs  map[string]Actioner
 	graph *graph.Graph
@@ -23,6 +28,7 @@ func Start() *Store {
 	s.Maps = make(chan *mapOp)
 	s.Sets = make(chan *SetOp)
 	s.Nodes = make(chan *nodesOp)
+	s.OutputChan = make(chan struct{})
 	// 	// s.Removed = make(chan *RemovedOp)
 
 	s.refs = make(map[string]Actioner)
@@ -44,8 +50,16 @@ func Start() *Store {
 					break
 				}
 				nodes.topological(s.refs, s.graph)
-				// case removed := <-s.Removed:
-				// 	removed.handle(s.core.refs)
+			// case removed := <-s.Removed:
+			// 	removed.handle(s.core.refs)
+			case <-s.OutputChan:
+				f, err := os.Create("output.gv")
+				if err != nil {
+					fmt.Println("error outputting graph ->", err)
+					break
+				}
+				buf := s.graph.Output()
+				buf.WriteTo(f)
 			}
 		}
 	}()
@@ -68,8 +82,8 @@ type Grapher interface {
 }
 
 type Mutator interface {
-	AddRef(string, Actioner)
-	MapRef(string, string, ...uint) error
+	AddRef(context.Context, string, Actioner)
+	MapRef(context.Context, string, string, ...uint) error
 }
 
 var StatusText = map[uint8]string{

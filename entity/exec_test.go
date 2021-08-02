@@ -7,7 +7,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/oligoden/meta/entity"
+	"github.com/oligoden/meta/refmap"
 )
 
 func TestExec(t *testing.T) {
@@ -30,11 +30,11 @@ func TestExec(t *testing.T) {
 	mc := dirTestConfigSetup(cfg, t)
 	dir := mc.Directories["a"]
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, entity.ContextKey("source"), "testing/work")
-	ctx = context.WithValue(ctx, entity.ContextKey("destination"), "testing")
-	ctx = context.WithValue(ctx, entity.ContextKey("watching"), false)
-	ctx = context.WithValue(ctx, entity.ContextKey("force"), false)
-	ctx = context.WithValue(ctx, entity.ContextKey("verbose"), 0)
+	ctx = context.WithValue(ctx, refmap.ContextKey("source"), "testing/work")
+	ctx = context.WithValue(ctx, refmap.ContextKey("destination"), "testing")
+	ctx = context.WithValue(ctx, refmap.ContextKey("watching"), false)
+	ctx = context.WithValue(ctx, refmap.ContextKey("force"), false)
+	ctx = context.WithValue(ctx, refmap.ContextKey("verbose"), 0)
 	rm := dirTestProcess(mc, ctx, t)
 
 	exec := dir.Execs["cp"]

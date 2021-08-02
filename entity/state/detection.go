@@ -29,8 +29,8 @@ func (cd Detect) Hash() string {
 	return cd.hash
 }
 
-func (cd *Detect) HashOf(m interface{}) error {
-	json, err := json.Marshal(m)
+func (cd *Detect) HashOf() error {
+	json, err := json.Marshal(*cd)
 	if err != nil {
 		return err
 	}

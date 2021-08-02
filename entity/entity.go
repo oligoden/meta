@@ -2,25 +2,24 @@ package entity
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-	"math/rand"
-	"path/filepath"
-	"regexp"
+	"io"
 	"strings"
-	"time"
 
-	"github.com/jinzhu/inflection"
 	"github.com/oligoden/meta/entity/state"
 	"github.com/oligoden/meta/refmap"
 )
 
-type ContextKey string
-
 type ConfigReader interface {
 	Identifier() string
 	Derived() (string, string)
-	OptionsContain(string) bool
+	ControlMappings() []*Mapping
+	AddPosibleMapping(Mapping)
+	Options() string
 	ContainsFilter(string) bool
+	Filters() filters
+	refmap.Actioner
 }
 
 type Basic struct {
@@ -28,89 +27,18 @@ type Basic struct {
 	SrcDerived  string                `json:"-"`
 	DstDerived  string                `json:"-"`
 	Directories map[string]*Directory `json:"directories"`
-	Files       map[string]*file      `json:"files"`
+	Files       map[string]*File      `json:"files"`
 	Execs       map[string]*cle       `json:"execs"`
 	// Import      string                `json:"import"`
 	Controls        controls     `json:"controls"`
 	This            ConfigReader `json:"-"`
 	Parent          ConfigReader `json:"-"`
-	PosibleMappings []Mapping    `json:"-"`
-	Settings        string       `json:"settings"`
+	posibleMappings map[string]Mapping
 	state.Detect
 }
 
-type controls struct {
-	Behaviour *behaviour `json:"behaviour"`
-	Mappings  []*Mapping `json:"mappings"`
-}
-
-type Mapping struct {
-	Start      Regexp `json:"start"`
-	End        Regexp `json:"end"`
-	StartSet   string
-	EndSet     string
-	Recurrence int `json:"recurrence"`
-}
-
-type Regexp struct {
-	regexp.Regexp
-}
-
-func (r *Regexp) UnmarshalText(text []byte) error {
-	search := string(text)
-	search = fmt.Sprintf("^%s$", search)
-	re := regexp.MustCompile(`\.`)
-	search = re.ReplaceAllString(search, `\.`)
-	re = regexp.MustCompile(`\*`)
-	search = re.ReplaceAllString(search, `.*`)
-
-	rr, err := Compile(search)
-	if err != nil {
-		return err
-	}
-	*r = *rr
-	return nil
-}
-
-func Compile(expr string) (*Regexp, error) {
-	re, err := regexp.Compile(expr)
-	if err != nil {
-		return nil, err
-	}
-	return &Regexp{*re}, nil
-}
-
-const (
-	NormalBehaviour = ""
-	CopyBehaviour   = "copy"
-	OutputBehaviour = "output"
-)
-
-type behaviour struct {
-	Options    string  `json:"options"`
-	Filters    filters `json:"filters"`
-	Recurrence int     `json:"recurrence"`
-}
-
-type filters map[string]map[string]string
-
 func (b Basic) Identifier() string {
-	return b.Name
-}
-
-func (b Basic) ContainsFilter(filter string) bool {
-	if _, has := b.Controls.Behaviour.Filters[filter]; has {
-		return true
-	}
-	return false
-}
-
-func (b Basic) OptionsContain(o string) bool {
-	if b.Controls.Behaviour == nil {
-		return false
-	}
-
-	return strings.Contains(b.Controls.Behaviour.Options, o)
+	return "basic:" + b.Name
 }
 
 func (Basic) Perform(refmap.Grapher, context.Context) error {
@@ -125,166 +53,144 @@ func (b Basic) Derived() (string, string) {
 	return b.SrcDerived, b.DstDerived
 }
 
-func (n *Basic) Process(bb BranchBuilder, rm refmap.Mutator, ctx context.Context) error {
-	if n.Controls.Behaviour == nil {
-		n.Controls.Behaviour = &behaviour{}
-	}
-	return n.processFiles(bb, rm, ctx)
+func (e *Basic) AddPosibleMapping(m Mapping) {
+	e.posibleMappings[m.StartSet+"-"+m.EndSet] = m
 }
 
-func (n *Basic) processFiles(bb BranchBuilder, rm refmap.Mutator, ctx context.Context) error {
-	for name, file := range n.Files {
-		file.Name = name
-		file.Parent = n.This
+func (e *Basic) Load(f io.Reader) error {
+	dec := json.NewDecoder(f)
 
-		if file.Controls.Behaviour == nil {
-			file.Controls.Behaviour = &behaviour{}
+	err := dec.Decode(e)
+	if err != nil {
+		return err
+	}
 
-			if n.Controls.Behaviour != nil {
-				file.Controls.Behaviour.Options = n.Controls.Behaviour.Options
-				if file.Controls.Behaviour.Filters == nil {
-					file.Controls.Behaviour.Filters = make(map[string]map[string]string)
-				}
-				for k, f := range n.Controls.Behaviour.Filters {
-					file.Controls.Behaviour.Filters[k] = f
+	return nil
+}
+
+func (e *Basic) Process(bb BranchBuilder, rm refmap.Mutator, ctx context.Context) error {
+	if e.This == nil {
+		e.This = e
+	}
+
+	if e.posibleMappings == nil {
+		e.posibleMappings = map[string]Mapping{}
+	}
+
+	rm.AddRef(ctx, e.This.Identifier(), e.This)
+
+	err := e.HashOf()
+	if err != nil {
+		return err
+	}
+
+	if e.Controls.Behaviour == nil {
+		e.Controls.Behaviour = &behaviour{}
+	}
+	if e.Controls.Behaviour.Filters == nil {
+		e.Controls.Behaviour.Filters = filters{}
+	}
+
+	mappings := e.Controls.Mappings
+	options := []string{}
+
+	if e.Parent != nil {
+		if e.Parent.Options() != "" {
+			for _, option := range strings.Split(e.Parent.Options(), ",") {
+				if !strings.Contains(e.Controls.Behaviour.Options, option) {
+					options = append(options, option)
 				}
 			}
 		}
 
-		err := file.calculateHash()
+		e.Controls.Mappings = append(e.Controls.Mappings, e.Parent.ControlMappings()...)
+
+		// for i, filter := range e.Parent.Filters() {
+		// 	if _, exist := e.Controls.Behaviour.Filters[i]; !exist {
+		// 		e.Controls.Behaviour.Filters[i] = filter
+		// 	}
+		// }
+	}
+
+	if e.Controls.Behaviour.Options != "" {
+		for _, option := range strings.Split(e.Controls.Behaviour.Options, ",") {
+			if !strings.HasPrefix(option, "-") {
+				options = append(options, option)
+			}
+		}
+	}
+	e.Controls.Behaviour.Options = strings.Join(options, ",")
+
+	for name := range e.Files {
+		e.Files[name].Name = name
+		e.Files[name].Parent = e.This
+		err := e.Files[name].Process(bb, rm, ctx)
 		if err != nil {
 			return err
 		}
+	}
 
-		_, err = bb.Build(file)
-		if err != nil {
-			return fmt.Errorf("building branch, %w", err)
-		}
-		file.Branch = bb
-
-		if file.Source == "" {
-			file.Source = filepath.Join(n.SrcDerived, name)
-		} else if strings.HasPrefix(file.Source, "./") {
-			file.Source = filepath.Join(n.SrcDerived, file.Source)
-		}
-
-		for _, m := range n.Controls.Mappings {
-			matchStart := m.Start.MatchString(file.Identifier())
-			matchEnd := m.End.MatchString(file.Identifier())
-			if matchStart && matchEnd {
-				return fmt.Errorf("directory matches start and end reference")
-			}
-			if matchStart {
-				n.PosibleMappings = append(n.PosibleMappings, Mapping{
-					StartSet:   file.Identifier(),
-					End:        m.End,
-					Recurrence: m.Recurrence,
-				})
-			}
-			if matchEnd {
-				n.PosibleMappings = append(n.PosibleMappings, Mapping{
-					Start:      m.Start,
-					EndSet:     file.Identifier(),
-					Recurrence: m.Recurrence,
-				})
-			}
-		}
-
-		rm.AddRef("file:"+file.Source, file)
-		err = rm.MapRef(file.Parent.Identifier(), "file:"+file.Source)
+	for name := range e.Directories {
+		e.Directories[name].Name = name
+		e.Directories[name].Parent = e.This
+		err := e.Directories[name].Process(bb, rm, ctx)
 		if err != nil {
 			return err
+		}
+	}
+
+	if e.Parent != nil {
+		for _, m := range e.posibleMappings {
+			e.Parent.AddPosibleMapping(m)
+		}
+
+		err = rm.MapRef(ctx, e.Parent.Identifier(), e.This.Identifier())
+		if err != nil {
+			return fmt.Errorf("mapping reference, %w", err)
+		}
+	}
+
+	for _, m := range mappings {
+		for _, ms := range e.posibleMappings {
+			if ms.StartSet != "" && m.Start.MatchString(ms.StartSet) {
+				for _, me := range e.posibleMappings {
+					if me.EndSet != "" && m.End.MatchString(me.EndSet) {
+						err := rm.MapRef(ctx, ms.StartSet, me.EndSet)
+						if err != nil {
+							return err
+						}
+					}
+				}
+			}
 		}
 	}
 
 	return nil
 }
 
-type Branch struct {
-	Directories []string
-	Filename    string
-	TemplateMethods
-}
+// const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+// const (
+// 	letterIdxBits = 6                    // 6 bits to represent a letter index
+// 	letterIdxMask = 1<<letterIdxBits - 1 // All 1-bits, as many as letterIdxBits
+// 	letterIdxMax  = 63 / letterIdxBits   // # of letter indices fitting in 63 bits
+// )
 
-type BranchBuilder interface {
-	Build(interface{}) (interface{}, error)
-}
+// var src = rand.NewSource(time.Now().UnixNano())
 
-func (b *Branch) Build(e interface{}) (interface{}, error) {
-	ent := e
+// //RandString creates a random string (https://stackoverflow.com/a/31832326)
+// func RandString(n int) string {
+// 	b := make([]byte, n)
+// 	for i, cache, remain := n-1, src.Int63(), letterIdxMax; i >= 0; {
+// 		if remain == 0 {
+// 			cache, remain = src.Int63(), letterIdxMax
+// 		}
+// 		if idx := int(cache & letterIdxMask); idx < len(letterBytes) {
+// 			b[i] = letterBytes[idx]
+// 			i--
+// 		}
+// 		cache >>= letterIdxBits
+// 		remain--
+// 	}
 
-	if b.Directories == nil {
-		b.Directories = []string{}
-	}
-
-	for i := 0; i < 40; i++ {
-		switch v := ent.(type) {
-		case nil:
-			return nil, fmt.Errorf("encountered nil")
-		case *Directory:
-			b.Directories = append(b.Directories, v.Name)
-			ent = v.Parent
-		case *file:
-			b.Filename = v.Name
-			ent = v.Parent
-		default:
-			return ent, nil
-		}
-	}
-
-	fmt.Printf("branch depth exceeded, stuck at %+v\n", ent)
-	return ent, fmt.Errorf("branch depth exceeded")
-}
-
-type TemplateMethods struct {
-}
-
-func (TemplateMethods) Clean(s string) string {
-	reg, _ := regexp.Compile("[^a-zA-Z]+")
-	return reg.ReplaceAllString(s, "")
-}
-
-func (TemplateMethods) Upper(s string) string {
-	return strings.ToUpper(s)
-}
-
-func (TemplateMethods) CleanUpper(s string) string {
-	reg, _ := regexp.Compile("[^a-zA-Z]+")
-	clean := reg.ReplaceAllString(s, "")
-	return strings.ToUpper(clean)
-}
-
-func (TemplateMethods) Title(s string) string {
-	return strings.Title(s)
-}
-
-func (TemplateMethods) Plural(s string) string {
-	return inflection.Plural(s)
-}
-
-const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-const (
-	letterIdxBits = 6                    // 6 bits to represent a letter index
-	letterIdxMask = 1<<letterIdxBits - 1 // All 1-bits, as many as letterIdxBits
-	letterIdxMax  = 63 / letterIdxBits   // # of letter indices fitting in 63 bits
-)
-
-var src = rand.NewSource(time.Now().UnixNano())
-
-//RandString creates a random string (https://stackoverflow.com/a/31832326)
-func RandString(n int) string {
-	b := make([]byte, n)
-	for i, cache, remain := n-1, src.Int63(), letterIdxMax; i >= 0; {
-		if remain == 0 {
-			cache, remain = src.Int63(), letterIdxMax
-		}
-		if idx := int(cache & letterIdxMask); idx < len(letterBytes) {
-			b[i] = letterBytes[idx]
-			i--
-		}
-		cache >>= letterIdxBits
-		remain--
-	}
-
-	return string(b)
-}
+// 	return string(b)
+// }

@@ -1,6 +1,7 @@
 package refmap
 
 import (
+	"context"
 	"fmt"
 
 	graph "github.com/oligoden/math-graph"
@@ -23,7 +24,12 @@ func (o addOp) handle(refs map[string]Actioner, g *graph.Graph) {
 	o.rsp <- nil
 }
 
-func (r Store) AddRef(key string, val Actioner) {
+func (r Store) AddRef(ctx context.Context, key string, val Actioner) {
+	verboseValue := ctx.Value(ContextKey("verbose")).(int)
+	if verboseValue >= 3 {
+		fmt.Println("adding", key)
+	}
+
 	add := &addOp{
 		key: key,
 		val: val,
@@ -41,8 +47,11 @@ type mapOp struct {
 	rsp   chan error
 }
 
-func (r Store) MapRef(key0, key1 string, setOption ...uint) error {
-	fmt.Println("mapping ", key0, key1)
+func (r Store) MapRef(ctx context.Context, key0, key1 string, setOption ...uint) error {
+	verboseValue := ctx.Value(ContextKey("verbose")).(int)
+	if verboseValue >= 3 {
+		fmt.Println("mapping", key0, key1)
+	}
 
 	set := uint(1)
 	if len(setOption) > 0 {

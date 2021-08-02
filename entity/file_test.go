@@ -1,8 +1,8 @@
 package entity_test
 
 import (
+	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -13,323 +13,321 @@ import (
 	"github.com/oligoden/meta/refmap"
 )
 
-func TestFilePerforming(t *testing.T) {
-	d1 := []byte("add this\nthis should not be here")
-	ioutil.WriteFile("testing/a/aa/aaa.go", d1, 0644)
-
-	testCases := []struct {
-		desc           string
-		file           string
-		parentDirCtrls string
-		dirCtrls       string
-		fileCtrls      string
-		output         bool
-		content        string
-	}{
-		{
-			desc:    "default no output behaviour",
-			file:    "aaa.ext",
-			content: "abc aaa.ext",
-			output:  false,
+func TestFileProcess(t *testing.T) {
+	f := bytes.NewBufferString(`{
+		"name": "abc",
+		"controls": {
+			"behaviour": {"options":"b,c"},
+			"mappings": [
+				{"start": "file:a.ext", "end": "file:b.ext"}
+			]
 		},
-		// {
-		// 	desc:      "template execution output",
-		// 	file:      "aaa.ext",
-		// 	content:   "abc aaa.ext",
-		// 	fileCtrls: `"controls":{"behaviour":{"options":"output"}}`,
-		// 	output:    true,
-		// },
-		// {
-		// 	desc:    "test source property",
-		// 	file:    "aaa.ext",
-		// 	prps:    `"source":"./aaz.ext"`,
-		// 	content: "def",
-		// 	output:  true,
-		// },
-		// {
-		// 	desc:    "test source in sub directory",
-		// 	file:    "aaa.ext",
-		// 	prps:    `"source":"./sub/aax.ext"`,
-		// 	content: "ijk",
-		// 	output:  true,
-		// },
-		// {
-		// 	desc:    "test source in parent directory",
-		// 	file:    "aab.ext",
-		// 	prps:    `"source":"aa.ext"`,
-		// 	content: "abc",
-		// 	output:  true,
-		// },
-		// {
-		// 	desc:    "test removal of .tmpl",
-		// 	file:    "aaa.ext.tmpl",
-		// 	content: "ghi",
-		// 	output:  true,
-		// },
-		// {
-		// 	desc:    "test copy only set on file",
-		// 	file:    "aaa.ext",
-		// 	prps:    `"settings":"copy-only"`,
-		// 	content: "abc {{.Filename}}",
-		// },
-		// {
-		// 	desc:    "test templates on file",
-		// 	file:    "aa-comp.ext",
-		// 	prps:    `"templates":["a/aa/aa-incl.ext"]`,
-		// 	content: "yul gar jom",
-		// 	output:  true,
-		// },
-		// {
-		// 	desc:    "test copy only set on directory",
-		// 	file:    "aaa.ext",
-		// 	dirControls: `copy-only`,
-		// 	content: "abc {{.Filename}}",
-		// },
-		// {
-		// 	desc:         "test copy only set on directory",
-		// 	file:         "aaa.ext",
-		// 	fileControls: `"controls":{"behaviour":{"options":"copy","output":true}},`,
-		// 	content:      "abc {{.Filename}}",
-		// 	output:       true,
-		// },
-		// {
-		// 	desc:         "test no output set on directory",
-		// 	file:         "aaa.ext",
-		// 	fileControls: `"controls":{"behaviour":{"output":false}},`,
-		// 	output:       false,
-		// },
-		// {
-		// 	desc: "test line inclusion control of .go files",
-		// 	file: "aaa.go.tmpl",
-		// 	// prps:    `"settings":"comment-filter"`,
-		// 	fileControls: `"controls":{"behaviour":{"filters":{"comment-filter":{}}, "output":true}},`,
-		// 	content:      "add this\n",
-		// 	output:       true,
-		// },
+		"files": {
+			"a.ext": {
+				"controls": {
+					"behaviour": {"options":"a,-c"}
+				}
+			},
+			"b.ext": {}
+		}
+	}`)
+
+	e := &entity.Basic{}
+	err := e.Load(f)
+	if err != nil {
+		t.Error("loading config")
 	}
 
-	for _, tC := range testCases {
-		dstFilename := strings.TrimSuffix("a/aa/"+tC.file, ".tmpl")
+	rm := refmap.Start()
 
-		t.Run(tC.desc, func(t *testing.T) {
-			str := `{
-				"directories": {
-					"a": {
-						%s
-						"directories": {
-							"aa": {
-								%s
-								"files": {
-									"%s": {%s}
-								}
-							}
-						}
-					}
-				}
-			}`
-			str = fmt.Sprintf(str, tC.parentDirCtrls, tC.dirCtrls, tC.file, tC.fileCtrls)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, refmap.ContextKey("source"), "testing")
+	ctx = context.WithValue(ctx, refmap.ContextKey("destination"), "testing/out")
+	ctx = context.WithValue(ctx, refmap.ContextKey("verbose"), 0)
 
-			m := &entity.Basic{}
-			err := json.Unmarshal([]byte(str), &m)
-			if err != nil {
-				t.Error("error unmarshalling,", err)
-			}
-			m.Name = "project:name"
+	err = e.Process(&entity.Branch{}, rm, ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-			dir := m.Directories["a"]
-			dir.Parent = m
-			dir.DstDerived = "a"
-			dir.SrcDerived = "a"
-			dir.Name = "a"
+	err = rm.Evaluate()
+	if err != nil {
+		t.Error("error evaluating refmap", err)
+	}
 
-			rm := refmap.Start()
-			rm.AddRef("project:name", m)
+	file, ok := e.Files["a.ext"]
+	if !ok {
+		t.Fatal("no file a.ext")
+	}
 
-			ctx := context.Background()
-			ctx = context.WithValue(ctx, entity.ContextKey("source"), "testing/work")
-			ctx = context.WithValue(ctx, entity.ContextKey("destination"), "testing")
-			ctx = context.WithValue(ctx, entity.ContextKey("watching"), false)
-			ctx = context.WithValue(ctx, entity.ContextKey("force"), true)
-			ctx = context.WithValue(ctx, entity.ContextKey("verbose"), 0)
+	exp := "file:a.ext"
+	got := file.Identifier()
+	if exp != got {
+		t.Errorf(`expected "%s", got "%s"`, exp, got)
+	}
 
-			err = dir.Process(&entity.Branch{}, rm, ctx)
-			if err != nil {
-				t.Fatal(err)
-			}
+	if file.Hash() == "" {
+		t.Error("expected non empty hash")
+	}
 
-			file, ok := dir.Directories["aa"].Files[tC.file]
-			if !ok {
-				t.Fatalf(`no file "%s"`, tC.file)
-			}
+	exp = "&{[] a.ext {}} or &{[] b.ext {}}"
+	got = fmt.Sprint(file.Branch)
+	if !strings.Contains(exp, got) {
+		t.Errorf(`expected "%s", got "%s"`, exp, got)
+	}
 
-			err = file.Perform(rm, ctx)
-			if err != nil {
-				t.Fatal(err)
-			}
+	exp = "a"
+	cnt := file.Controls.Behaviour.Options
+	if !strings.Contains(cnt, exp) {
+		t.Errorf(`expected "%s" in "%s"`, exp, cnt)
+	}
 
-			if file.OptionsContain("output") != tC.output {
-				t.Fatal("output flag does not match")
-			}
+	exp = "b"
+	if !strings.Contains(cnt, exp) {
+		t.Errorf(`expected "%s" in "%s"`, exp, cnt)
+	}
 
-			if file.OptionsContain("output") {
-				if _, err := os.Stat("testing/" + dstFilename); err != nil {
-					t.Error(err)
-				}
+	exp = "c"
+	if strings.Contains(cnt, exp) {
+		t.Errorf(`did not expect "%s" in "%s"`, exp, cnt)
+	}
 
-				content, err := ioutil.ReadFile("testing/" + dstFilename)
-				if err != nil {
-					t.Fatal(err)
-				}
-				exp := tC.content
-				got := string(content)
-				if exp != got {
-					t.Errorf(`expected "%s", got "%s"`, exp, got)
-				}
-			}
-		})
+	parents := rm.ParentFiles("file:a.ext")
+	exp = "[file:a.ext]"
+	got = fmt.Sprint(parents)
+	if exp != got {
+		t.Errorf(`expected "%s", got "%s"`, exp, got)
+	}
 
-		os.RemoveAll("testing/" + dstFilename)
+	parents = rm.ParentFiles("file:b.ext")
+	exp = "[file:b.ext file:a.ext]"
+	got = fmt.Sprint(parents)
+	if exp != got {
+		t.Errorf(`expected "%s", got "%s"`, exp, got)
 	}
 }
 
-// func TestFileForcing(t *testing.T) {
-// 	str := `{
-// 		"directories": {
-// 			"a": {
-// 				"directories": {
-// 					"aa": {
-// 						"files": {
-// 							"aab.ext": {}
-// 						}
-// 					}
-// 				}
-// 			}
-// 		}
-// 	}`
-// 	str = fmt.Sprintf(str)
+func TestFilePerform(t *testing.T) {
+	c := []byte(`a{{define "a"}}a{{end}}`)
+	if err := ioutil.WriteFile("testing/a.ext", c, 0644); err != nil {
+		t.Error(err)
+	}
 
-// 	m := &entity.Basic{}
-// 	err := json.Unmarshal([]byte(str), &m)
-// 	if err != nil {
-// 		t.Error("error unmarshalling,", err)
-// 	}
+	c = []byte(`{{template "a"}} b`)
+	if err := ioutil.WriteFile("testing/b.ext", c, 0644); err != nil {
+		t.Error(err)
+	}
 
-// 	dir := m.Directories["a"]
-// 	dir.DstDerived = "a"
-// 	dir.SrcDerived = "a"
-// 	dir.Name = "a"
-// 	// m.Directories["a"].ParentID = "project:name"
-// 	m.Directories["a"].Parent = m
+	defer func() {
+		os.RemoveAll("testing/a.ext")
+		os.RemoveAll("testing/b.ext")
+		os.RemoveAll("testing/out")
+	}()
 
-// 	rm := refmap.Start()
-// 	rm.AddRef("project:name", m)
+	f := bytes.NewBufferString(`{
+		"name": "abc",
+		"controls": {
+			"behaviour": {
+				"options": "output"
+			},
+			"mappings": [
+				{"start": "file:a.ext", "end": "file:b.ext"}
+			]
+		},
+		"files": {
+			"a.ext": {},
+			"b.ext": {}
+		}
+	}`)
 
-// 	ctx := context.Background()
-// 	ctx = context.WithValue(ctx, entity.ContextKey("source"), "testing/work")
-// 	ctx = context.WithValue(ctx, entity.ContextKey("destination"), "testing")
-// 	ctx = context.WithValue(ctx, entity.ContextKey("watching"), false)
-// 	ctx = context.WithValue(ctx, entity.ContextKey("force"), true)
-// 	ctx = context.WithValue(ctx, entity.ContextKey("verbose"), 0)
+	e := &entity.Basic{}
+	err := e.Load(f)
+	if err != nil {
+		t.Error("loading config")
+	}
 
-// 	err = dir.Process(&entity.Branch{}, rm, ctx)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
+	rm := refmap.Start()
 
-// 	f1, _ := os.Create("testing/a/aa/aab.ext")
-// 	f1.WriteString("abc")
-// 	f1.Close()
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, refmap.ContextKey("source"), "testing")
+	ctx = context.WithValue(ctx, refmap.ContextKey("destination"), "testing/out")
+	ctx = context.WithValue(ctx, refmap.ContextKey("verbose"), 0)
 
-// 	f1, _ = os.Create("testing/work/a/aa/aab.ext")
-// 	f1.WriteString("def")
-// 	f1.Close()
+	err = e.Process(&entity.Branch{}, rm, ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-// 	err = dir.Directories["aa"].Files["aab.ext"].Perform(rm, ctx)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
+	err = rm.Evaluate()
+	if err != nil {
+		t.Error("error evaluating refmap", err)
+	}
 
-// 	content, err := ioutil.ReadFile("testing/a/aa/aab.ext")
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	exp := "def"
-// 	got := string(content)
-// 	if exp != got {
-// 		t.Errorf(`expected "%s", got "%s"`, exp, got)
-// 	}
+	for _, ref := range rm.ChangedRefs() {
+		err = ref.Perform(rm, ctx)
+		if err != nil {
+			t.Error("error performing action ->", err)
+		}
+	}
 
-// 	os.RemoveAll("testing/work/a/aa/aab.ext")
-// 	os.RemoveAll("testing/a/aa/aab.ext")
-// }
+	if _, err := os.Stat("testing/out/a.ext"); err != nil {
+		t.Error(err)
+	}
+	content, err := ioutil.ReadFile("testing/out/a.ext")
+	if err != nil {
+		t.Fatal(err)
+	}
+	exp := "a"
+	got := string(content)
+	if exp != got {
+		t.Errorf(`expected "%s", got "%s"`, exp, got)
+	}
 
-// func TestFileNotForcing(t *testing.T) {
-// 	str := `{
-// 		"directories": {
-// 			"a": {
-// 				"directories": {
-// 					"aa": {
-// 						"files": {
-// 							"aab.ext": {}
-// 						}
-// 					}
-// 				}
-// 			}
-// 		}
-// 	}`
-// 	str = fmt.Sprintf(str)
+	if _, err := os.Stat("testing/out/b.ext"); err != nil {
+		t.Error(err)
+	}
+	content, err = ioutil.ReadFile("testing/out/b.ext")
+	if err != nil {
+		t.Fatal(err)
+	}
+	exp = "a b"
+	got = string(content)
+	if exp != got {
+		t.Errorf(`expected "%s", got "%s"`, exp, got)
+	}
+}
 
-// 	m := &entity.Basic{}
-// 	err := json.Unmarshal([]byte(str), &m)
-// 	if err != nil {
-// 		t.Error("error unmarshalling,", err)
-// 	}
+func TestFilePerformCopy(t *testing.T) {
+	c := []byte(`{{"a"}}`)
+	if err := ioutil.WriteFile("testing/a.ext", c, 0644); err != nil {
+		t.Error(err)
+	}
 
-// 	dir := m.Directories["a"]
-// 	dir.DstDerived = "a"
-// 	dir.SrcDerived = "a"
-// 	dir.Name = "a"
-// 	// m.Directories["a"].ParentID = "project:name"
-// 	m.Directories["a"].Parent = m
+	defer func() {
+		os.RemoveAll("testing/a.ext")
+		os.RemoveAll("testing/out")
+	}()
 
-// 	rm := refmap.Start()
-// 	rm.AddRef("project:name", m)
+	f := bytes.NewBufferString(`{
+		"name": "abc",
+		"controls": {
+			"behaviour": {
+				"options": "output,copy"
+			}
+		},
+		"files": {
+			"a.ext": {}
+		}
+	}`)
 
-// 	ctx := context.Background()
-// 	ctx = context.WithValue(ctx, entity.ContextKey("source"), "testing/work")
-// 	ctx = context.WithValue(ctx, entity.ContextKey("destination"), "testing")
-// 	ctx = context.WithValue(ctx, entity.ContextKey("watching"), false)
-// 	ctx = context.WithValue(ctx, entity.ContextKey("force"), false)
-// 	ctx = context.WithValue(ctx, entity.ContextKey("verbose"), 0)
+	e := &entity.Basic{}
+	err := e.Load(f)
+	if err != nil {
+		t.Error("loading config")
+	}
 
-// 	err = dir.Process(&entity.Branch{}, rm, ctx)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
+	rm := refmap.Start()
 
-// 	f1, _ := os.Create("testing/a/aa/aab.ext")
-// 	f1.WriteString("abc")
-// 	f1.Close()
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, refmap.ContextKey("source"), "testing")
+	ctx = context.WithValue(ctx, refmap.ContextKey("destination"), "testing/out")
+	ctx = context.WithValue(ctx, refmap.ContextKey("verbose"), 0)
 
-// 	f1, _ = os.Create("testing/work/a/aa/aab.ext")
-// 	f1.WriteString("def")
-// 	f1.Close()
+	err = e.Process(&entity.Branch{}, rm, ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-// 	err = dir.Directories["aa"].Files["aab.ext"].Perform(rm, ctx)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
+	err = rm.Evaluate()
+	if err != nil {
+		t.Error("error evaluating refmap", err)
+	}
 
-// 	content, err := ioutil.ReadFile("testing/a/aa/aab.ext")
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	exp := "abc"
-// 	got := string(content)
-// 	if exp != got {
-// 		t.Errorf(`expected "%s", got "%s"`, exp, got)
-// 	}
+	for _, ref := range rm.ChangedRefs() {
+		err = ref.Perform(rm, ctx)
+		if err != nil {
+			t.Error("error performing action ->", err)
+		}
+	}
 
-// 	os.RemoveAll("testing/work/a/aa/aab.ext")
-// 	os.RemoveAll("testing/a/aa/aab.ext")
-// }
+	if _, err := os.Stat("testing/out/a.ext"); err != nil {
+		t.Error(err)
+	}
+	content, err := ioutil.ReadFile("testing/out/a.ext")
+	if err != nil {
+		t.Fatal(err)
+	}
+	exp := `{{"a"}}`
+	got := string(content)
+	if exp != got {
+		t.Errorf(`expected "%s", got "%s"`, exp, got)
+	}
+}
+
+func TestFilters(t *testing.T) {
+	c := []byte(`//-a`)
+	if err := ioutil.WriteFile("testing/a.ext", c, 0644); err != nil {
+		t.Error(err)
+	}
+
+	defer func() {
+		os.RemoveAll("testing/a.ext")
+		os.RemoveAll("testing/out")
+	}()
+
+	f := bytes.NewBufferString(`{
+		"name": "abc",
+		"controls": {
+			"behaviour": {
+				"options": "output",
+				"filters": {"comment":{}}
+			}
+		},
+		"files": {
+			"a.ext": {}
+		}
+	}`)
+
+	e := &entity.Basic{}
+	err := e.Load(f)
+	if err != nil {
+		t.Error("error loading config", err)
+	}
+
+	rm := refmap.Start()
+
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, refmap.ContextKey("source"), "testing")
+	ctx = context.WithValue(ctx, refmap.ContextKey("destination"), "testing/out")
+	ctx = context.WithValue(ctx, refmap.ContextKey("verbose"), 0)
+
+	err = e.Process(&entity.Branch{}, rm, ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = rm.Evaluate()
+	if err != nil {
+		t.Error("error evaluating refmap", err)
+	}
+
+	for _, ref := range rm.ChangedRefs() {
+		err = ref.Perform(rm, ctx)
+		if err != nil {
+			t.Error("error performing action ->", err)
+		}
+	}
+
+	if _, err := os.Stat("testing/out/a.ext"); err != nil {
+		t.Error(err)
+	}
+	content, err := ioutil.ReadFile("testing/out/a.ext")
+	if err != nil {
+		t.Fatal(err)
+	}
+	exp := ""
+	got := string(content)
+	if exp != got {
+		t.Errorf(`expected "%s", got "%s"`, exp, got)
+	}
+}

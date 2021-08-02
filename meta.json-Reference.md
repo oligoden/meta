@@ -152,6 +152,45 @@ D = /sub (sub directory from root directory)
 
 The `from` key can be used in the same way as the `dest` was use above to modify the source location.
 
+#### Configurations
+
+The creation of file can be configured with the `controls` key. The `behaviour` can
+be configured and mappings can be set that creates a dependancy in the element graph.
+
+```json
+{
+  "directories": {
+    "one": {
+      "controls": {
+        "behaviour": {
+          "options": "option1,option2",
+          "filters": {"some-filter":{}}
+        },
+        "mappings": [
+          {"start": "file:aaa.ext", "end": "file:bbb.ext"}
+        ]
+      },
+      "files": {
+        "aaa.ext": {},
+        "bbb.ext": {}
+      }
+    }
+  }
+}
+```
+
+Here the behaviour is defined as well as a mapping. Two options are specified namely
+`option1` and `option2`. A filter `some-filter` is also specified with no properties.
+
+Available options are:
+
+- `output`: Writes the output file in the destination location.
+- `copy`: Creates a direct copy of the input file. It will not be parsed as a template.
+
+Available filters are:
+
+- `comment-filter`: Enables the comment filter.
+
 #### Copying Files Only
 
 The `copy` key can be used at directory and file level to copy files directly.

@@ -121,3 +121,8 @@ func (r Store) ParentRefs(file string) []string {
 	}
 	return nodes
 }
+
+// Output writes the graph to a file.
+func (r Store) Output() {
+	r.OutputChan <- struct{}{}
+}

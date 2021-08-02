@@ -58,15 +58,14 @@ var upCmd = &cobra.Command{
 			return
 		}
 
-		p, err := entity.Load(f)
+		e := entity.NewProject()
+		err = e.Load(f)
 		if err != nil {
-			log.Fatalln("error loading file", metaFileName, err)
-			return
+			log.Fatalln("error loading config", metaFileName, "->", err)
 		}
 		f.Close()
 
 		metaOverrideFileName := strings.TrimSuffix(metaFileName, filepath.Ext(metaFileName)) + ".override" + filepath.Ext(metaFileName)
-
 		f, err = os.Open(metaOverrideFileName)
 		if err != nil {
 			if !strings.Contains(err.Error(), "no such file or directory") {
@@ -74,7 +73,7 @@ var upCmd = &cobra.Command{
 				return
 			}
 		} else {
-			err = p.Load(f)
+			err = e.Load(f)
 			if err != nil {
 				log.Fatalln("error loading file", metaFileName, err)
 				return
@@ -89,7 +88,7 @@ var upCmd = &cobra.Command{
 		}
 
 		if workLocation == "" {
-			workLocation = p.WorkLocation
+			workLocation = e.WorkLocation
 		}
 
 		destinationLocation, err := cmd.Flags().GetString("dest")
@@ -99,14 +98,12 @@ var upCmd = &cobra.Command{
 		}
 
 		if destinationLocation == "" {
-			destinationLocation = p.DestLocation
+			destinationLocation = e.DestLocation
 		}
 
-		forceFlag, _ := cmd.Flags().GetBool("force")
-		ctx := context.WithValue(context.Background(), entity.ContextKey("source"), workLocation)
-		ctx = context.WithValue(ctx, entity.ContextKey("destination"), destinationLocation)
-		ctx = context.WithValue(ctx, entity.ContextKey("force"), forceFlag)
-		ctx = context.WithValue(ctx, entity.ContextKey("verbose"), verboseValue)
+		ctx := context.WithValue(context.Background(), refmap.ContextKey("source"), workLocation)
+		ctx = context.WithValue(ctx, refmap.ContextKey("destination"), destinationLocation)
+		ctx = context.WithValue(ctx, refmap.ContextKey("verbose"), verboseValue)
 
 		// the configuration is processed and graph build
 		fmt.Println("processing configuration")
@@ -126,10 +123,10 @@ var upCmd = &cobra.Command{
 		defer metafileWatcher.Close()
 		metafileWatcher.Add(metaFileName)
 
-		ctx = context.WithValue(ctx, entity.ContextKey("watcher"), metafileWatcher)
+		ctx = context.WithValue(ctx, refmap.ContextKey("watcher"), metafileWatcher)
 
 		rm := refmap.Start()
-		err = p.Process(&entity.ProjectBranch{}, rm, ctx)
+		err = e.Process(&entity.ProjectBranch{}, rm, ctx)
 		if err != nil {
 			fmt.Println("error processing project", err)
 			return
@@ -140,9 +137,7 @@ var upCmd = &cobra.Command{
 			return
 		}
 
-		// the project is build
-		fmt.Println("building project")
-
+		fmt.Println("building project...")
 		for _, ref := range rm.ChangedRefs() {
 			if strings.HasPrefix(ref.Identifier(), "file:") {
 				filename := filepath.Join(workLocation, ref.Identifier()[5:])
@@ -164,7 +159,7 @@ var upCmd = &cobra.Command{
 
 		stopSignal := make(chan os.Signal, 1)
 		signal.Notify(stopSignal, os.Interrupt, os.Kill)
-		ctx = context.WithValue(ctx, entity.ContextKey("force"), true)
+		ctx = context.WithValue(ctx, refmap.ContextKey("force"), true)
 		done := make(chan bool)
 
 		// any changes to files are watched
@@ -217,7 +212,7 @@ var upCmd = &cobra.Command{
 							break
 						}
 
-						err = p.Load(f)
+						err = e.Load(f)
 						if err != nil {
 							fmt.Println("error loading file", metaFileName, err)
 							run = false
@@ -232,7 +227,7 @@ var upCmd = &cobra.Command{
 								return
 							}
 						} else {
-							err = p.Load(f)
+							err = e.Load(f)
 							if err != nil {
 								fmt.Println("error loading meta override file", metaOverrideFileName, err)
 								return
@@ -240,7 +235,7 @@ var upCmd = &cobra.Command{
 							f.Close()
 						}
 
-						err = p.Process(&entity.ProjectBranch{}, rm, ctx)
+						err = e.Process(&entity.ProjectBranch{}, rm, ctx)
 						if err != nil {
 							fmt.Println("error processing project", err)
 							run = false

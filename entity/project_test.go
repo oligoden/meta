@@ -3,203 +3,220 @@ package entity_test
 import (
 	"bytes"
 	"context"
+	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/oligoden/meta/entity"
 	"github.com/oligoden/meta/refmap"
 )
 
-func TestLoad(t *testing.T) {
-	f := bytes.NewBufferString(`{bad json}`)
-	_, err := entity.Load(f)
-	if err == nil {
-		t.Error("expected error")
-	}
-
-	f = bytes.NewBufferString(`{
-		"name":"abc",
-		"directories":{
-			"a":{}
-		}
+func TestProjectProcess(t *testing.T) {
+	f := bytes.NewBufferString(`{
+		"name": "abc"
 	}`)
-	p, err := entity.Load(f)
+
+	e := entity.NewProject()
+	err := e.Load(f)
 	if err != nil {
-		t.Error(err)
+		t.Fatal("error loading config ->", err)
 	}
 
-	exp := "abc"
-	got := p.Name
-	if got != exp {
-		t.Errorf(`expected "%s", got "%s"`, exp, got)
-	}
-
-	if p.Directories == nil {
-		t.Error("expected directories")
-	}
-}
-
-func TestLoadOverride(t *testing.T) {
-	f := bytes.NewBufferString(`{
-			"name":"abc",
-			"execs": {
-				"a": {
-					"cmd": ["a"]
-				},
-				"b": {}
-			}
-		}`)
-	p, err := entity.Load(f)
-	if err != nil {
-		t.Error(err)
-	}
-
-	f = bytes.NewBufferString(`{bad json}`)
-	err = p.Load(f)
-	if err == nil {
-		t.Error("expected error")
-	}
-
+	// testing overriding
 	f = bytes.NewBufferString(`{
-			"name":"def",
-			"execs": {
-				"a": {
-					"cmd": ["b"]
-				},
-				"c": {}
-			}
+		"environment": "development"
 		}`)
 
-	err = p.Load(f)
+	err = e.Load(f)
 	if err != nil {
-		t.Error(err)
+		t.Fatal("error loading override config ->", err)
 	}
 
-	exp := "def"
-	got := p.Name
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, refmap.ContextKey("source"), "testing")
+	ctx = context.WithValue(ctx, refmap.ContextKey("destination"), "testing/out")
+	ctx = context.WithValue(ctx, refmap.ContextKey("verbose"), 0)
+
+	rm := refmap.Start()
+	err = e.Process(&entity.Branch{}, rm, ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = rm.Evaluate()
+	if err != nil {
+		t.Error("error evaluating refmap", err)
+	}
+
+	exp := "prj:abc"
+	got := e.Identifier()
 	if got != exp {
 		t.Errorf(`expected "%s", got "%s"`, exp, got)
 	}
 
-	if p.Execs == nil {
-		t.Error("expected execs")
-		t.FailNow()
+	if e.Hash() == "" {
+		t.Error("expected non empty hash")
 	}
 
-	if len(p.Execs) != 3 {
-		t.Error("expected 3 execs")
-	}
-
-	exc, ok := p.Execs["a"]
-	if !ok {
-		t.Error("expected exec a")
-		t.FailNow()
-	}
-
-	if len(exc.Cmd) != 1 {
-		t.Error("expected 1 cmd arg")
+	exp = "development"
+	got = e.Environment
+	if got != exp {
+		t.Errorf(`expected "%s", got "%s"`, exp, got)
 	}
 }
 
-func TestProcess(t *testing.T) {
+func TestProjectPerform(t *testing.T) {
+	if err := os.MkdirAll("testing/b", 0755); err != nil {
+		t.Error(err)
+	}
+
+	c := []byte("test")
+	if err := ioutil.WriteFile("testing/test.ext", c, 0644); err != nil {
+		t.Error(err)
+	}
+
+	c = []byte(`aa {{define "aa"}}aa{{end}}`)
+	if err := ioutil.WriteFile("testing/a/aa.ext", c, 0644); err != nil {
+		t.Error(err)
+	}
+
+	c = []byte(`{{template "aa"}} ab`)
+	if err := ioutil.WriteFile("testing/a/ab.ext", c, 0644); err != nil {
+		t.Error(err)
+	}
+
+	c = []byte(`{{template "aa"}} ac`)
+	if err := ioutil.WriteFile("testing/a/ac.ext", c, 0644); err != nil {
+		t.Error(err)
+	}
+
+	c = []byte(`{{template "aa"}} ba`)
+	if err := ioutil.WriteFile("testing/b/ba.ext", c, 0644); err != nil {
+		t.Error(err)
+	}
+
+	defer func() {
+		os.RemoveAll("testing/test.ext")
+		os.RemoveAll("testing/a/aa.ext")
+		os.RemoveAll("testing/a/ab.ext")
+		os.RemoveAll("testing/b")
+		os.RemoveAll("testing/out")
+	}()
+
 	f := bytes.NewBufferString(`{
-		"name":"abc",
-		"directories":{
-			"a":{
-				"files":{
-					"aa.ext":{}
+		"name": "abc",
+		"controls": {
+			"behaviour": {
+				"options": "output"
+			},
+			"mappings": [
+				{"start": "file:a/aa.ext", "end": "file:a/ab.ext"},
+				{"start": "file:a/aa.ext", "end": "file:b/ba.ext"}
+			]
+		},
+		"directories": {
+			"a": {
+				"controls": {
+					"mappings": [
+						{"start": "file:a/aa.ext", "end": "file:a/ac.ext"}
+					]
+				},
+				"files": {
+					"aa.ext": {},
+					"ab.ext": {},
+					"ac.ext": {}
 				}
 			},
-			"b":{
-				"files":{
-					"ba.ext":{}
+			"b": {
+				"files": {
+					"ba.ext": {}
 				}
 			}
+		},
+		"files": {
+			"test.ext": {}
 		}
 	}`)
-	p, err := entity.Load(f)
+
+	e := entity.NewProject()
+	err := e.Load(f)
 	if err != nil {
-		t.Error(err)
+		t.Error("loading config")
 	}
 
 	rm := refmap.Start()
-	ctx := context.WithValue(context.Background(), entity.ContextKey("verbose"), 0)
-	err = p.Process(&entity.ProjectBranch{}, rm, ctx)
+
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, refmap.ContextKey("source"), "testing")
+	ctx = context.WithValue(ctx, refmap.ContextKey("destination"), "testing/out")
+	ctx = context.WithValue(ctx, refmap.ContextKey("verbose"), 0)
+
+	err = e.Process(&entity.Branch{}, rm, ctx)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
-	exp := "a"
-	got := p.Directories["a"].Name
-	if got != exp {
+	err = rm.Evaluate()
+	if err != nil {
+		t.Error("error evaluating refmap", err)
+	}
+
+	for _, ref := range rm.ChangedRefs() {
+		err = ref.Perform(rm, ctx)
+		if err != nil {
+			t.Error("error performing action ->", err)
+		}
+	}
+
+	if _, err := os.Stat("testing/out/test.ext"); err != nil {
+		t.Error(err)
+	}
+	content, err := ioutil.ReadFile("testing/out/test.ext")
+	if err != nil {
+		t.Fatal(err)
+	}
+	exp := "test"
+	got := string(content)
+	if exp != got {
 		t.Errorf(`expected "%s", got "%s"`, exp, got)
 	}
 
-	exp = "a"
-	got = p.Directories["a"].SrcDerived
-	if got != exp {
+	if _, err := os.Stat("testing/out/a/aa.ext"); err != nil {
+		t.Error(err)
+	}
+	content, err = ioutil.ReadFile("testing/out/a/aa.ext")
+	if err != nil {
+		t.Fatal(err)
+	}
+	exp = "aa "
+	got = string(content)
+	if exp != got {
 		t.Errorf(`expected "%s", got "%s"`, exp, got)
 	}
 
-	exp = "a"
-	got = p.Directories["a"].DstDerived
-	if got != exp {
+	if _, err := os.Stat("testing/out/a/ab.ext"); err != nil {
+		t.Error(err)
+	}
+	content, err = ioutil.ReadFile("testing/out/a/ab.ext")
+	if err != nil {
+		t.Fatal(err)
+	}
+	exp = "aa ab"
+	got = string(content)
+	if exp != got {
 		t.Errorf(`expected "%s", got "%s"`, exp, got)
 	}
 
-	if _, ok := p.Directories["a"].Parent.(*entity.Project); !ok {
-		t.Error("expected parent to be project")
-	}
-
-	if p.Directories["a"].Hash() == "" {
-		t.Errorf(`expected hash, got empty sting`)
-	}
-}
-
-func TestProcessCheckHashChange(t *testing.T) {
-	f := bytes.NewBufferString(`{
-			"name":"abc",
-			"directories":{
-				"a":{}
-			}
-		}`)
-	p, err := entity.Load(f)
-	if err != nil {
+	if _, err := os.Stat("testing/out/b/ba.ext"); err != nil {
 		t.Error(err)
 	}
-
-	rm := refmap.Start()
-	ctx := context.WithValue(context.Background(), entity.ContextKey("verbose"), 0)
-	err = p.Process(&entity.ProjectBranch{}, rm, ctx)
+	content, err = ioutil.ReadFile("testing/out/b/ba.ext")
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
-
-	hash1 := p.Basic.Hash()
-
-	f = bytes.NewBufferString(`{
-			"name":"abc",
-			"directories":{
-				"a":{},
-				"b":{}
-			}
-		}`)
-	p, err = entity.Load(f)
-	if err != nil {
-		t.Error(err)
-	}
-
-	err = p.Process(&entity.ProjectBranch{}, rm, ctx)
-	if err != nil {
-		t.Error(err)
-	}
-
-	hash2 := p.Basic.Hash()
-
-	if hash1 == "" {
-		t.Errorf(`expected hash, got empty sting`)
-	}
-
-	if hash2 != hash1 {
-		t.Errorf(`expected hash to stay constant`)
+	exp = "aa ba"
+	got = string(content)
+	if exp != got {
+		t.Errorf(`expected "%s", got "%s"`, exp, got)
 	}
 }

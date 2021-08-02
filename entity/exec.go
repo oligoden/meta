@@ -24,8 +24,7 @@ type cle struct {
 }
 
 func (exec *cle) calculateHash() error {
-	execTemp := *exec
-	err := exec.HashOf(execTemp)
+	err := exec.HashOf()
 	if err != nil {
 		return err
 	}
@@ -62,7 +61,7 @@ func (e cle) Derived() (string, string) {
 // }
 
 func (e *cle) Perform(rm refmap.Grapher, ctx context.Context) error {
-	RootDstDir := ctx.Value(ContextKey("destination")).(string)
+	RootDstDir := ctx.Value(refmap.ContextKey("destination")).(string)
 
 	if e.Timeout == 0 {
 		e.Timeout = 500

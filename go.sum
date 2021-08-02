@@ -150,6 +150,10 @@ github.com/oligoden/math-graph v0.1.5 h1:Q3SXe6hwCKAZW5Z7/C7myWN24C2my3XvAR/j+LF
 github.com/oligoden/math-graph v0.1.5/go.mod h1:knK2u1AUqQyAySTyBhONO457pNkFORpcrpucEsiAfCc=
 github.com/oligoden/math-graph v0.2.0 h1:8dDs5eNE7RkG6oqw5DfQEEBW1mIV+ULYJTatk3IdDO4=
 github.com/oligoden/math-graph v0.2.0/go.mod h1:knK2u1AUqQyAySTyBhONO457pNkFORpcrpucEsiAfCc=
+github.com/oligoden/math-graph v0.3.0 h1:IZIO02unz6TzUlK9e6qawlT/CgyRF32ApkwArWON/e8=
+github.com/oligoden/math-graph v0.3.0/go.mod h1:knK2u1AUqQyAySTyBhONO457pNkFORpcrpucEsiAfCc=
+github.com/oligoden/math-graph v0.3.1 h1:OWMj9udrLMHO6MHT53LC8WMZ3IWa2ia2QsHhFfr0Lbw=
+github.com/oligoden/math-graph v0.3.1/go.mod h1:knK2u1AUqQyAySTyBhONO457pNkFORpcrpucEsiAfCc=
 github.com/pascaldekloe/goe v0.0.0-20180627143212-57f6aae5913c/go.mod h1:lzWF7FIEvWOWxwDKqyGYQf6ZUaNfKdP144TG7ZOy1lc=
 github.com/pelletier/go-toml v1.2.0 h1:T5zMGML61Wp+FlcbWjRDT7yAxhJNAiPPLOFECq181zc=
 github.com/pelletier/go-toml v1.2.0/go.mod h1:5z9KED0ma1S8pY6P1sdut58dfprrGBbd/94hg7ilaic=

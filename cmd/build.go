@@ -29,7 +29,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/fsnotify/fsnotify"
 	"github.com/oligoden/meta/entity"
 	"github.com/oligoden/meta/refmap"
 
@@ -46,8 +45,7 @@ Use the force flag (-f) to force rebuilding of all files.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		metaFileName, err := cmd.Flags().GetString("metafile")
 		if err != nil {
-			log.Fatalln("error getting meta filename", err)
-			return
+			log.Fatalln("error getting config filename flag ->", err)
 		}
 
 		verboseValue, _ := cmd.Flags().GetInt("verbose")
@@ -55,109 +53,71 @@ Use the force flag (-f) to force rebuilding of all files.`,
 			fmt.Println("verbosity level", verboseValue)
 		}
 
-		fmt.Println("loading metafile")
-		f, err := os.Open(metaFileName)
+		e := entity.NewProject()
+		err = e.LoadFile(metaFileName)
 		if err != nil {
-			log.Fatalln(err)
-			return
+			log.Fatalln("error loading project config ->", err)
 		}
-
-		p, err := entity.Load(f)
-		if err != nil {
-			log.Fatalln("error loading file", metaFileName, err)
-			return
-		}
-		f.Close()
 
 		metaOverrideFileName := strings.TrimSuffix(metaFileName, filepath.Ext(metaFileName)) + ".override" + filepath.Ext(metaFileName)
-
-		f, err = os.Open(metaOverrideFileName)
-		if err != nil {
-			if !strings.Contains(err.Error(), "no such file or directory") {
-				log.Fatalln(err)
-				return
-			}
-		} else {
-			err = p.Load(f)
+		if _, err := os.Stat(metaOverrideFileName); err == nil {
+			err = e.LoadFile(metaOverrideFileName)
 			if err != nil {
-				log.Fatalln("error loading file", metaFileName, err)
-				return
+				log.Fatalln("error loading project config ->", err)
 			}
-			f.Close()
 		}
 
-		if verboseValue == 3 {
+		if verboseValue >= 1 {
+			if e.Environment != "" {
+				fmt.Println("environment:", e.Environment)
+			} else {
+				fmt.Println("no environment set")
+			}
 		}
 
 		workLocation, err := cmd.Flags().GetString("work")
 		if err != nil {
-			fmt.Println("error getting meta folder name", err)
-			return
+			log.Fatalln("error getting work location flag ->", err)
 		}
 
 		if workLocation == "" {
-			workLocation = p.WorkLocation
+			workLocation = e.WorkLocation
 		}
 
-		destinationLocation, err := cmd.Flags().GetString("dest")
+		destLocation, err := cmd.Flags().GetString("dest")
 		if err != nil {
-			fmt.Println("error getting destination location", err)
-			return
+			log.Fatalln("error getting destination location flag ->", err)
 		}
 
-		if destinationLocation == "" {
-			destinationLocation = p.DestLocation
+		if destLocation == "" {
+			destLocation = e.DestLocation
 		}
 
-		forceFlag, _ := cmd.Flags().GetBool("force")
-		ctx := context.WithValue(context.Background(), entity.ContextKey("source"), workLocation)
-		ctx = context.WithValue(ctx, entity.ContextKey("destination"), destinationLocation)
-		ctx = context.WithValue(ctx, entity.ContextKey("force"), forceFlag)
-		ctx = context.WithValue(ctx, entity.ContextKey("verbose"), verboseValue)
+		ctx := context.WithValue(context.Background(), refmap.ContextKey("source"), workLocation)
+		ctx = context.WithValue(ctx, refmap.ContextKey("destination"), destLocation)
+		ctx = context.WithValue(ctx, refmap.ContextKey("verbose"), verboseValue)
 
 		// the configuration is processed and graph build
-		fmt.Println("processing configuration")
-
-		fileWatcher, err := fsnotify.NewWatcher()
-		if err != nil {
-			fmt.Println("error starting file watcher", err)
-			return
-		}
-		defer fileWatcher.Close()
-
-		metafileWatcher, err := fsnotify.NewWatcher()
-		if err != nil {
-			fmt.Println("error starting meta file watcher", err)
-			return
-		}
-		defer metafileWatcher.Close()
-		metafileWatcher.Add(metaFileName)
-
-		ctx = context.WithValue(ctx, entity.ContextKey("watcher"), metafileWatcher)
-
+		fmt.Println("processing...")
 		rm := refmap.Start()
-		err = p.Process(&entity.ProjectBranch{}, rm, ctx)
+
+		err = e.Process(&entity.ProjectBranch{}, rm, ctx)
 		if err != nil {
-			fmt.Println("error processing project", err)
-			return
+			log.Fatalln("error processing project ->", err)
 		}
+
 		err = rm.Evaluate()
 		if err != nil {
-			fmt.Println("error evaluating graph", err)
-			return
+			log.Fatalln("error evaluating graph ->", err)
 		}
+		rm.Output()
 
 		// the project is build
-		fmt.Println("building project")
+		fmt.Println("building...")
 
 		for _, ref := range rm.ChangedRefs() {
-			if verboseValue >= 1 {
+			if verboseValue >= 2 {
 				fmt.Println("performing", ref.Identifier())
-			}
-
-			if strings.HasPrefix(ref.Identifier(), "file:") {
-				filename := filepath.Join(workLocation, ref.Identifier()[5:])
-				fileWatcher.Add(filename)
 			}
 
 			err = ref.Perform(rm, ctx)
@@ -172,7 +132,7 @@ Use the force flag (-f) to force rebuilding of all files.`,
 		}
 		rm.Finish()
 
-		fmt.Println("READY")
+		fmt.Println("done")
 	},
 }
 
