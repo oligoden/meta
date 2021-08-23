@@ -52,13 +52,42 @@ func (e cle) Derived() (string, string) {
 	return "", ""
 }
 
-// func (e *cle) Process() error {
-// 	err := e.calculateHash()
-// 	if err != nil {
-// 		return err
-// 	}
-// 	return nil
-// }
+func (e *cle) Process(rm refmap.Mutator, ctx context.Context) error {
+	err := e.HashOf()
+	if err != nil {
+		return err
+	}
+
+	for _, m := range e.Parent.ControlMappings() {
+		matchStart := m.Start.MatchString(e.Identifier())
+		matchEnd := m.End.MatchString(e.Identifier())
+		if matchStart && matchEnd {
+			return fmt.Errorf("directory matches start and end reference")
+		}
+		if matchStart {
+			e.Parent.AddPosibleMapping(Mapping{
+				StartSet:   e.Identifier(),
+				End:        m.End,
+				Recurrence: m.Recurrence,
+			})
+		}
+		if matchEnd {
+			e.Parent.AddPosibleMapping(Mapping{
+				Start:      m.Start,
+				EndSet:     e.Identifier(),
+				Recurrence: m.Recurrence,
+			})
+		}
+	}
+
+	rm.AddRef(ctx, e.Identifier(), e)
+	err = rm.MapRef(ctx, e.Parent.Identifier(), e.Identifier())
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
 
 func (e *cle) Perform(rm refmap.Grapher, ctx context.Context) error {
 	RootDstDir := ctx.Value(refmap.ContextKey("destination")).(string)

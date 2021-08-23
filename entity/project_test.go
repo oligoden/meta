@@ -11,6 +11,35 @@ import (
 	"github.com/oligoden/meta/refmap"
 )
 
+func TestProjectLoadFile(t *testing.T) {
+	e := entity.NewProject()
+	err := e.LoadFile("testing/meta.json")
+	if err != nil {
+		t.Fatal("error loading config ->", err)
+	}
+
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, refmap.ContextKey("source"), "testing")
+	ctx = context.WithValue(ctx, refmap.ContextKey("destination"), "testing/out")
+	ctx = context.WithValue(ctx, refmap.ContextKey("verbose"), 0)
+
+	rm := refmap.Start()
+	err = e.Process(&entity.Branch{}, rm, ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = rm.Evaluate()
+	if err != nil {
+		t.Error("error evaluating refmap", err)
+	}
+
+	exp := "prj:abc"
+	got := e.Identifier()
+	if got != exp {
+		t.Errorf(`expected "%s", got "%s"`, exp, got)
+	}
+}
 func TestProjectProcess(t *testing.T) {
 	f := bytes.NewBufferString(`{
 		"name": "abc"
@@ -66,6 +95,10 @@ func TestProjectProcess(t *testing.T) {
 }
 
 func TestProjectPerform(t *testing.T) {
+	if err := os.MkdirAll("testing/a", 0755); err != nil {
+		t.Error(err)
+	}
+
 	if err := os.MkdirAll("testing/b", 0755); err != nil {
 		t.Error(err)
 	}
@@ -97,8 +130,7 @@ func TestProjectPerform(t *testing.T) {
 
 	defer func() {
 		os.RemoveAll("testing/test.ext")
-		os.RemoveAll("testing/a/aa.ext")
-		os.RemoveAll("testing/a/ab.ext")
+		os.RemoveAll("testing/a")
 		os.RemoveAll("testing/b")
 		os.RemoveAll("testing/out")
 	}()

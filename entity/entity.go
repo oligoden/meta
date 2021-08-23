@@ -23,16 +23,16 @@ type ConfigReader interface {
 }
 
 type Basic struct {
-	Name        string                `json:"name"`
-	SrcDerived  string                `json:"-"`
-	DstDerived  string                `json:"-"`
-	Directories map[string]*Directory `json:"directories"`
-	Files       map[string]*File      `json:"files"`
-	Execs       map[string]*cle       `json:"execs"`
-	// Import      string                `json:"import"`
-	Controls        controls     `json:"controls"`
-	This            ConfigReader `json:"-"`
-	Parent          ConfigReader `json:"-"`
+	Name            string                `json:"name"`
+	SrcDerived      string                `json:"-"`
+	DstDerived      string                `json:"-"`
+	Directories     map[string]*Directory `json:"directories"`
+	Files           map[string]*File      `json:"files"`
+	Execs           map[string]*cle       `json:"execs"`
+	Import          bool                  `json:"import"`
+	Controls        controls              `json:"controls"`
+	This            ConfigReader          `json:"-"`
+	Parent          ConfigReader          `json:"-"`
 	posibleMappings map[string]Mapping
 	state.Detect
 }
@@ -73,15 +73,47 @@ func (e *Basic) Process(bb BranchBuilder, rm refmap.Mutator, ctx context.Context
 		e.This = e
 	}
 
-	if e.posibleMappings == nil {
-		e.posibleMappings = map[string]Mapping{}
-	}
-
 	rm.AddRef(ctx, e.This.Identifier(), e.This)
 
 	err := e.HashOf()
 	if err != nil {
 		return err
+	}
+
+	// if d.Import != nil {
+	// 	rootSrcDir := ctx.Value(ContextKey("source")).(string)
+	// 	metafile := filepath.Join(rootSrcDir, d.SrcDerived, "/meta.json")
+
+	// 	f, err := os.Open(metafile)
+	// 	if err != nil {
+	// 		fmt.Println(err)
+	// 		return err
+	// 	}
+	// 	defer f.Close()
+
+	// 	p := &Project{}
+	// 	err = p.Load(f)
+	// 	if err != nil {
+	// 		fmt.Println(err)
+	// 		return err
+	// 	}
+
+	// 	if metfileWatcher, ok := ctx.Value(ContextKey("watcher")).(*fsnotify.Watcher); ok {
+	// 		metfileWatcher.Add(metafile)
+	// 	}
+
+	// 	if d.Directories == nil {
+	// 		d.Directories = map[string]*Directory{}
+	// 	}
+
+	// 	for k, v := range p.Directories {
+	// 		d.Directories[k] = v
+	// 		// updatePaths(d.Directories[k], d.SrcDerived)
+	// 	}
+	// }
+
+	if e.posibleMappings == nil {
+		e.posibleMappings = map[string]Mapping{}
 	}
 
 	if e.Controls.Behaviour == nil {
@@ -134,6 +166,15 @@ func (e *Basic) Process(bb BranchBuilder, rm refmap.Mutator, ctx context.Context
 		e.Directories[name].Name = name
 		e.Directories[name].Parent = e.This
 		err := e.Directories[name].Process(bb, rm, ctx)
+		if err != nil {
+			return err
+		}
+	}
+
+	for name := range e.Execs {
+		e.Execs[name].Name = name
+		e.Execs[name].Parent = e.This
+		err := e.Execs[name].Process(rm, ctx)
 		if err != nil {
 			return err
 		}

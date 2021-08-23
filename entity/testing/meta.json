@@ -1,14 +1,3 @@
 {
-    "name": "Demo",
-    "directories": {
-        "a":{
-            "files": {
-                "a.ext": {
-                    "templates": [
-                        "a/b.ext"
-                    ]
-                }
-            }
-        }
-    }
+    "name": "abc"
 }

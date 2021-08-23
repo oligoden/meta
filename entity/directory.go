@@ -10,14 +10,14 @@ import (
 )
 
 type Directory struct {
-	SrcOverride string        `json:"src-ovr"`
-	DstOverride string        `json:"dst-ovr"`
-	Import      *configImport `json:"import"`
+	SrcOverride string `json:"src-ovr"`
+	DstOverride string `json:"dst-ovr"`
+	// Import      *configImport `json:"import"`
 	Basic
 }
 
-type configImport struct {
-}
+// type configImport struct {
+// }
 
 func (d Directory) Identifier() string {
 	return "dir:" + d.SrcDerived + ":" + d.Name
@@ -67,38 +67,6 @@ func (e *Directory) Process(bb BranchBuilder, rm refmap.Mutator, ctx context.Con
 	// verboseValue := ctx.Value(ContextKey("verbose")).(int)
 	e.SrcDerived = path(e.SrcDerived, e.SrcOverride)
 	e.DstDerived = path(e.DstDerived, e.DstOverride)
-
-	// if d.Import != nil {
-	// 	rootSrcDir := ctx.Value(ContextKey("source")).(string)
-	// 	metafile := filepath.Join(rootSrcDir, d.SrcDerived, "/meta.json")
-
-	// 	f, err := os.Open(metafile)
-	// 	if err != nil {
-	// 		fmt.Println(err)
-	// 		return err
-	// 	}
-	// 	defer f.Close()
-
-	// 	p := &Project{}
-	// 	err = p.Load(f)
-	// 	if err != nil {
-	// 		fmt.Println(err)
-	// 		return err
-	// 	}
-
-	// 	if metfileWatcher, ok := ctx.Value(ContextKey("watcher")).(*fsnotify.Watcher); ok {
-	// 		metfileWatcher.Add(metafile)
-	// 	}
-
-	// 	if d.Directories == nil {
-	// 		d.Directories = map[string]*Directory{}
-	// 	}
-
-	// 	for k, v := range p.Directories {
-	// 		d.Directories[k] = v
-	// 		// updatePaths(d.Directories[k], d.SrcDerived)
-	// 	}
-	// }
 
 	e.This = e
 
