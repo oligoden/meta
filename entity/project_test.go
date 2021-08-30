@@ -9,13 +9,20 @@ import (
 
 	"github.com/oligoden/meta/entity"
 	"github.com/oligoden/meta/refmap"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestProjectLoadFile(t *testing.T) {
+	c := []byte(`{"name": "abc"}`)
+	if err := ioutil.WriteFile("testing/meta.json", c, 0644); err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll("testing/meta.json")
+
 	e := entity.NewProject()
 	err := e.LoadFile("testing/meta.json")
 	if err != nil {
-		t.Fatal("error loading config ->", err)
+		t.Fatal(err)
 	}
 
 	ctx := context.Background()
@@ -31,34 +38,26 @@ func TestProjectLoadFile(t *testing.T) {
 
 	err = rm.Evaluate()
 	if err != nil {
-		t.Error("error evaluating refmap", err)
+		t.Fatal(err)
 	}
 
-	exp := "prj:abc"
-	got := e.Identifier()
-	if got != exp {
-		t.Errorf(`expected "%s", got "%s"`, exp, got)
-	}
+	assert.Equal(t, "prj:abc", e.Identifier())
 }
 func TestProjectProcess(t *testing.T) {
-	f := bytes.NewBufferString(`{
-		"name": "abc"
-	}`)
+	f := bytes.NewBufferString(`{"name": "abc"}`)
 
 	e := entity.NewProject()
 	err := e.Load(f)
 	if err != nil {
-		t.Fatal("error loading config ->", err)
+		t.Fatal(err)
 	}
 
 	// testing overriding
-	f = bytes.NewBufferString(`{
-		"environment": "development"
-		}`)
+	f = bytes.NewBufferString(`{"environment": "development"}`)
 
 	err = e.Load(f)
 	if err != nil {
-		t.Fatal("error loading override config ->", err)
+		t.Fatal(err)
 	}
 
 	ctx := context.Background()
@@ -74,58 +73,46 @@ func TestProjectProcess(t *testing.T) {
 
 	err = rm.Evaluate()
 	if err != nil {
-		t.Error("error evaluating refmap", err)
+		t.Fatal(err)
 	}
 
-	exp := "prj:abc"
-	got := e.Identifier()
-	if got != exp {
-		t.Errorf(`expected "%s", got "%s"`, exp, got)
-	}
-
-	if e.Hash() == "" {
-		t.Error("expected non empty hash")
-	}
-
-	exp = "development"
-	got = e.Environment
-	if got != exp {
-		t.Errorf(`expected "%s", got "%s"`, exp, got)
-	}
+	assert.Equal(t, "prj:abc", e.Identifier())
+	assert.NotEmpty(t, e.Hash())
+	assert.Equal(t, "development", e.Environment)
 }
 
 func TestProjectPerform(t *testing.T) {
 	if err := os.MkdirAll("testing/a", 0755); err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
 	if err := os.MkdirAll("testing/b", 0755); err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
 	c := []byte("test")
 	if err := ioutil.WriteFile("testing/test.ext", c, 0644); err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
 	c = []byte(`aa {{define "aa"}}aa{{end}}`)
 	if err := ioutil.WriteFile("testing/a/aa.ext", c, 0644); err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
 	c = []byte(`{{template "aa"}} ab`)
 	if err := ioutil.WriteFile("testing/a/ab.ext", c, 0644); err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
 	c = []byte(`{{template "aa"}} ac`)
 	if err := ioutil.WriteFile("testing/a/ac.ext", c, 0644); err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
 	c = []byte(`{{template "aa"}} ba`)
 	if err := ioutil.WriteFile("testing/b/ba.ext", c, 0644); err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
 	defer func() {
@@ -173,7 +160,7 @@ func TestProjectPerform(t *testing.T) {
 	e := entity.NewProject()
 	err := e.Load(f)
 	if err != nil {
-		t.Error("loading config")
+		t.Fatal(err)
 	}
 
 	rm := refmap.Start()
@@ -190,65 +177,49 @@ func TestProjectPerform(t *testing.T) {
 
 	err = rm.Evaluate()
 	if err != nil {
-		t.Error("error evaluating refmap", err)
+		t.Fatal(err)
 	}
 
 	for _, ref := range rm.ChangedRefs() {
 		err = ref.Perform(rm, ctx)
 		if err != nil {
-			t.Error("error performing action ->", err)
+			t.Fatal(err)
 		}
 	}
 
 	if _, err := os.Stat("testing/out/test.ext"); err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	content, err := ioutil.ReadFile("testing/out/test.ext")
 	if err != nil {
 		t.Fatal(err)
 	}
-	exp := "test"
-	got := string(content)
-	if exp != got {
-		t.Errorf(`expected "%s", got "%s"`, exp, got)
-	}
+	assert.Equal(t, "test", string(content))
 
 	if _, err := os.Stat("testing/out/a/aa.ext"); err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	content, err = ioutil.ReadFile("testing/out/a/aa.ext")
 	if err != nil {
 		t.Fatal(err)
 	}
-	exp = "aa "
-	got = string(content)
-	if exp != got {
-		t.Errorf(`expected "%s", got "%s"`, exp, got)
-	}
+	assert.Equal(t, "aa ", string(content))
 
 	if _, err := os.Stat("testing/out/a/ab.ext"); err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	content, err = ioutil.ReadFile("testing/out/a/ab.ext")
 	if err != nil {
 		t.Fatal(err)
 	}
-	exp = "aa ab"
-	got = string(content)
-	if exp != got {
-		t.Errorf(`expected "%s", got "%s"`, exp, got)
-	}
+	assert.Equal(t, "aa ab", string(content))
 
 	if _, err := os.Stat("testing/out/b/ba.ext"); err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	content, err = ioutil.ReadFile("testing/out/b/ba.ext")
 	if err != nil {
 		t.Fatal(err)
 	}
-	exp = "aa ba"
-	got = string(content)
-	if exp != got {
-		t.Errorf(`expected "%s", got "%s"`, exp, got)
-	}
+	assert.Equal(t, "aa ba", string(content))
 }

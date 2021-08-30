@@ -5,10 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/oligoden/meta/entity/state"
 	"github.com/oligoden/meta/refmap"
+	"gopkg.in/fsnotify.v1"
 )
 
 type ConfigReader interface {
@@ -80,37 +83,44 @@ func (e *Basic) Process(bb BranchBuilder, rm refmap.Mutator, ctx context.Context
 		return err
 	}
 
-	// if d.Import != nil {
-	// 	rootSrcDir := ctx.Value(ContextKey("source")).(string)
-	// 	metafile := filepath.Join(rootSrcDir, d.SrcDerived, "/meta.json")
+	if e.Import {
+		rootSrcDir := ctx.Value(refmap.ContextKey("source")).(string)
+		metafile := filepath.Join(rootSrcDir, e.SrcDerived, "/meta.json")
 
-	// 	f, err := os.Open(metafile)
-	// 	if err != nil {
-	// 		fmt.Println(err)
-	// 		return err
-	// 	}
-	// 	defer f.Close()
+		f, err := os.Open(metafile)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
 
-	// 	p := &Project{}
-	// 	err = p.Load(f)
-	// 	if err != nil {
-	// 		fmt.Println(err)
-	// 		return err
-	// 	}
+		eImport := &Basic{}
+		err = eImport.Load(f)
+		if err != nil {
+			return err
+		}
 
-	// 	if metfileWatcher, ok := ctx.Value(ContextKey("watcher")).(*fsnotify.Watcher); ok {
-	// 		metfileWatcher.Add(metafile)
-	// 	}
+		if metfileWatcher, ok := ctx.Value(refmap.ContextKey("watcher")).(*fsnotify.Watcher); ok {
+			metfileWatcher.Add(metafile)
+		}
 
-	// 	if d.Directories == nil {
-	// 		d.Directories = map[string]*Directory{}
-	// 	}
+		if e.Directories == nil {
+			e.Directories = map[string]*Directory{}
+		}
 
-	// 	for k, v := range p.Directories {
-	// 		d.Directories[k] = v
-	// 		// updatePaths(d.Directories[k], d.SrcDerived)
-	// 	}
-	// }
+		for k, v := range eImport.Directories {
+			e.Directories[k] = v
+			// updatePaths(d.Directories[k], d.SrcDerived)
+		}
+
+		if e.Files == nil {
+			e.Files = map[string]*File{}
+		}
+
+		for k, v := range eImport.Files {
+			e.Files[k] = v
+			// updatePaths(e.Files[k], e.SrcDerived)
+		}
+	}
 
 	if e.posibleMappings == nil {
 		e.posibleMappings = map[string]Mapping{}

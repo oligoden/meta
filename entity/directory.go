@@ -79,8 +79,8 @@ func (e *Directory) Process(bb BranchBuilder, rm refmap.Mutator, ctx context.Con
 }
 
 func path(path, modify string) string {
-	if strings.HasPrefix(modify, ".") {
-		return filepath.Join(filepath.Dir(path), modify)
+	if strings.HasPrefix(modify, "../") {
+		return filepath.Join(filepath.Dir(path), modify[3:])
 	}
 	if strings.HasPrefix(modify, "/") {
 		return strings.TrimPrefix(modify, "/")

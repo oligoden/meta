@@ -112,9 +112,7 @@ Use the force flag (-f) to force rebuilding of all files.`,
 		}
 		rm.Output()
 
-		// the project is build
 		fmt.Println("building...")
-
 		for _, ref := range rm.ChangedRefs() {
 			if verboseValue >= 2 {
 				fmt.Println("performing", ref.Identifier())
