@@ -13,11 +13,15 @@ import (
 )
 
 func TestProjectLoadFile(t *testing.T) {
+	if err := os.MkdirAll("testing", 0755); err != nil {
+		t.Error(err)
+	}
+	defer os.RemoveAll("testing")
+
 	c := []byte(`{"name": "abc"}`)
 	if err := ioutil.WriteFile("testing/meta.json", c, 0644); err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll("testing/meta.json")
 
 	e := entity.NewProject()
 	err := e.LoadFile("testing/meta.json")

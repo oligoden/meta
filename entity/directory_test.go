@@ -137,6 +137,11 @@ func TestDirProcess(t *testing.T) {
 }
 
 func TestDirPerform(t *testing.T) {
+	if err := os.MkdirAll("testing", 0755); err != nil {
+		t.Error(err)
+	}
+	defer os.RemoveAll("testing")
+
 	c := []byte(`a {{template "aa"}}`)
 	if err := ioutil.WriteFile("testing/a.ext", c, 0644); err != nil {
 		t.Error(err)
@@ -174,17 +179,6 @@ func TestDirPerform(t *testing.T) {
 	if err := ioutil.WriteFile("testing/b/ba.ext", c, 0644); err != nil {
 		t.Error(err)
 	}
-
-	defer func() {
-		os.RemoveAll("testing/a.ext")
-		os.RemoveAll("testing/aa.ext")
-		os.RemoveAll("testing/ab.ext")
-		os.RemoveAll("testing/ac.ext")
-		os.RemoveAll("testing/ba.ext")
-		os.RemoveAll("testing/b")
-		os.RemoveAll("testing/aa")
-		os.RemoveAll("testing/out")
-	}()
 
 	f := bytes.NewBufferString(`{
 		"name": "abc",

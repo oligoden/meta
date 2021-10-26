@@ -6,24 +6,26 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"time"
 
 	"github.com/oligoden/meta/entity/state"
 	"github.com/oligoden/meta/refmap"
 )
 
-type cle struct {
-	Name        string
-	Cmd         []string          `json:"cmd"`
-	Timeout     uint              `json:"timeout"`
-	Environment map[string]string `json:"env"`
-	STDOut      *bytes.Buffer
-	STDErr      *bytes.Buffer
-	Parent      ConfigReader `json:"-"`
+type CLE struct {
+	Name    string
+	Cmd     []string          `json:"cmd"`
+	Timeout uint              `json:"timeout"`
+	Env     map[string]string `json:"env"`
+	Dir     string            `json:"dir"`
+	STDOut  *bytes.Buffer
+	STDErr  *bytes.Buffer
+	Parent  ConfigReader `json:"-"`
 	state.Detect
 }
 
-func (exec *cle) calculateHash() error {
+func (exec *CLE) calculateHash() error {
 	err := exec.HashOf()
 	if err != nil {
 		return err
@@ -31,11 +33,11 @@ func (exec *cle) calculateHash() error {
 	return nil
 }
 
-func (e cle) Identifier() string {
+func (e CLE) Identifier() string {
 	return "exec:" + e.Name
 }
 
-func (e cle) Output() string {
+func (e CLE) Output() string {
 	output := fmt.Sprintf("action %s was run", e.Name)
 	if e.STDOut.String() != "" {
 		output += "\nstdout: " + e.STDOut.String()
@@ -48,11 +50,11 @@ func (e cle) Output() string {
 	return output
 }
 
-func (e cle) Derived() (string, string) {
+func (e CLE) Derived() (string, string) {
 	return "", ""
 }
 
-func (e *cle) Process(rm refmap.Mutator, ctx context.Context) error {
+func (e *CLE) Process(rm refmap.Mutator, ctx context.Context) error {
 	err := e.HashOf()
 	if err != nil {
 		return err
@@ -89,8 +91,8 @@ func (e *cle) Process(rm refmap.Mutator, ctx context.Context) error {
 	return nil
 }
 
-func (e *cle) Perform(rm refmap.Grapher, ctx context.Context) error {
-	RootDstDir := ctx.Value(refmap.ContextKey("destination")).(string)
+func (e *CLE) Perform(rm refmap.Grapher, ctx context.Context) error {
+	RootSrcDir := ctx.Value(refmap.ContextKey("source")).(string)
 
 	if e.Timeout == 0 {
 		e.Timeout = 500
@@ -106,10 +108,10 @@ func (e *cle) Perform(rm refmap.Grapher, ctx context.Context) error {
 	}
 
 	cmd := exec.CommandContext(ctx, e.Cmd[0], e.Cmd[1:]...)
-	cmd.Dir = RootDstDir
+	cmd.Dir = filepath.Join(RootSrcDir, e.Dir)
 	cmd.Stdout = e.STDOut
 	cmd.Stderr = e.STDErr
-	for k, v := range e.Environment {
+	for k, v := range e.Env {
 		cmd.Env = append(os.Environ(), fmt.Sprintf(`%s=%s`, k, v))
 	}
 	return cmd.Run()

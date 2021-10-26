@@ -108,6 +108,11 @@ func TestFileProcess(t *testing.T) {
 }
 
 func TestFilePerform(t *testing.T) {
+	if err := os.MkdirAll("testing", 0755); err != nil {
+		t.Error(err)
+	}
+	defer os.RemoveAll("testing")
+
 	c := []byte(`a{{define "a"}}a{{end}}`)
 	if err := ioutil.WriteFile("testing/a.ext", c, 0644); err != nil {
 		t.Error(err)
@@ -117,12 +122,6 @@ func TestFilePerform(t *testing.T) {
 	if err := ioutil.WriteFile("testing/b.ext", c, 0644); err != nil {
 		t.Error(err)
 	}
-
-	defer func() {
-		os.RemoveAll("testing/a.ext")
-		os.RemoveAll("testing/b.ext")
-		os.RemoveAll("testing/out")
-	}()
 
 	f := bytes.NewBufferString(`{
 		"name": "abc",
@@ -198,15 +197,15 @@ func TestFilePerform(t *testing.T) {
 }
 
 func TestFilePerformCopy(t *testing.T) {
+	if err := os.MkdirAll("testing", 0755); err != nil {
+		t.Error(err)
+	}
+	defer os.RemoveAll("testing")
+
 	c := []byte(`{{"a"}}`)
 	if err := ioutil.WriteFile("testing/a.ext", c, 0644); err != nil {
 		t.Error(err)
 	}
-
-	defer func() {
-		os.RemoveAll("testing/a.ext")
-		os.RemoveAll("testing/out")
-	}()
 
 	f := bytes.NewBufferString(`{
 		"name": "abc",
@@ -265,15 +264,15 @@ func TestFilePerformCopy(t *testing.T) {
 }
 
 func TestFilters(t *testing.T) {
+	if err := os.MkdirAll("testing", 0755); err != nil {
+		t.Error(err)
+	}
+	defer os.RemoveAll("testing")
+
 	c := []byte(`//-a`)
 	if err := ioutil.WriteFile("testing/a.ext", c, 0644); err != nil {
 		t.Error(err)
 	}
-
-	defer func() {
-		os.RemoveAll("testing/a.ext")
-		os.RemoveAll("testing/out")
-	}()
 
 	f := bytes.NewBufferString(`{
 		"name": "abc",

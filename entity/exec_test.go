@@ -12,6 +12,7 @@ import (
 
 	"github.com/oligoden/meta/entity"
 	"github.com/oligoden/meta/refmap"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestExecProcess(t *testing.T) {
@@ -27,7 +28,8 @@ func TestExecProcess(t *testing.T) {
 		},
 		"execs": {
 			"cp": {
-				"cmd": ["cp", "a.ext", "b.ext"]
+				"cmd": ["cp", "a.ext", "b.ext"],
+				"env": {"E":"a"}
 			}
 		}
 	}`)
@@ -70,6 +72,10 @@ func TestExecProcess(t *testing.T) {
 		t.Error("expected non empty hash")
 	}
 
+	if assert.Contains(t, exec.Env, "E") {
+		assert.Equal(t, "a", exec.Env["E"])
+	}
+
 	parents := rm.ParentFiles("exec:cp")
 	exp = "[file:a.ext]"
 	got = fmt.Sprint(parents)
@@ -79,76 +85,40 @@ func TestExecProcess(t *testing.T) {
 }
 
 func TestExecPerform(t *testing.T) {
-	c := []byte(`a{{define "a"}}a{{end}}`)
-	if err := ioutil.WriteFile("testing/a.ext", c, 0644); err != nil {
+	assert := assert.New(t)
+
+	if err := os.MkdirAll("testing/cd", 0755); err != nil {
 		t.Error(err)
 	}
+	defer os.RemoveAll("testing")
 
-	defer func() {
-		os.RemoveAll("testing/a.ext")
-		os.RemoveAll("testing/out")
-	}()
-
-	f := bytes.NewBufferString(`{
-		"name": "abc",
-		"controls": {
-			"behaviour": {
-				"options": "output"
-			},
-			"mappings": [
-				{"start": "file:a.ext", "end": "exec:cp"}
-			]
-		},
-		"files": {
-			"a.ext": {}
-		},
-		"execs": {
-			"cp": {
-				"cmd": ["cp", "a.ext", "b.ext"]
-			}
-		}
-	}`)
-
-	e := &entity.Basic{}
-	err := e.Load(f)
-	if err != nil {
-		t.Error("loading config")
+	c := []byte(`a`)
+	if err := ioutil.WriteFile("testing/cd/a.ext", c, 0644); err != nil {
+		t.Error(err)
 	}
-
-	rm := refmap.Start()
 
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, refmap.ContextKey("source"), "testing")
 	ctx = context.WithValue(ctx, refmap.ContextKey("destination"), "testing/out")
 	ctx = context.WithValue(ctx, refmap.ContextKey("verbose"), 0)
 
-	err = e.Process(&entity.Branch{}, rm, ctx)
-	if err != nil {
-		t.Fatal(err)
+	cle := &entity.CLE{}
+	cle.Name = "cp"
+	cle.Cmd = []string{"cp", "a.ext", "b.ext"}
+	cle.Env = map[string]string{"E": "a"}
+	cle.Dir = "cd"
+
+	assert.NoError(cle.Perform(nil, ctx))
+
+	if assert.NotNil(cle) {
+		assert.Equal("a", cle.Env["E"])
+		assert.Equal("exec:cp", cle.Identifier())
+		assert.Equal("action cp was run", cle.Output())
+		assert.Equal("cd", cle.Dir)
 	}
 
-	err = rm.Evaluate()
-	if err != nil {
-		t.Error("error evaluating refmap", err)
-	}
-
-	for _, ref := range rm.ChangedRefs() {
-		err = ref.Perform(rm, ctx)
-		if err != nil {
-			t.Error("error performing action ->", err)
-		}
-	}
-
-	if _, err := os.Stat("testing/out/b.ext"); err != nil {
-		t.Error(err)
-	}
-	content, err := ioutil.ReadFile("testing/out/b.ext")
-	if err != nil {
-		t.Fatal(err)
-	}
-	exp := "a"
-	got := string(content)
-	if exp != got {
-		t.Errorf(`expected "%s", got "%s"`, exp, got)
+	content, err := ioutil.ReadFile("testing/cd/b.ext")
+	if assert.NoError(err) {
+		assert.Equal("a", string(content))
 	}
 }

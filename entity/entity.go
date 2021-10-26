@@ -31,7 +31,7 @@ type Basic struct {
 	DstDerived      string                `json:"-"`
 	Directories     map[string]*Directory `json:"directories"`
 	Files           map[string]*File      `json:"files"`
-	Execs           map[string]*cle       `json:"execs"`
+	Execs           map[string]*CLE       `json:"execs"`
 	Import          bool                  `json:"import"`
 	Controls        controls              `json:"controls"`
 	This            ConfigReader          `json:"-"`

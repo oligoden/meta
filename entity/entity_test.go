@@ -85,6 +85,11 @@ func TestBasicProcess(t *testing.T) {
 }
 
 func TestImportProcess(t *testing.T) {
+	if err := os.MkdirAll("testing", 0755); err != nil {
+		t.Error(err)
+	}
+	defer os.RemoveAll("testing")
+
 	c := []byte(`{
 		"directories":{"a":{}},
 		"files":{"a.ext":{}}
@@ -92,7 +97,6 @@ func TestImportProcess(t *testing.T) {
 	if err := ioutil.WriteFile("testing/meta.json", c, 0644); err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll("testing/meta.json")
 
 	f := bytes.NewBufferString(`{
 		"name":"abc",
