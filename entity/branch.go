@@ -2,6 +2,7 @@ package entity
 
 import (
 	"fmt"
+	"os"
 	"regexp"
 	"strings"
 
@@ -99,4 +100,8 @@ func (TemplateMethods) Title(s string) string {
 
 func (TemplateMethods) Plural(s string) string {
 	return inflection.Plural(s)
+}
+
+func (TemplateMethods) Env(s string) string {
+	return os.Getenv(s)
 }
