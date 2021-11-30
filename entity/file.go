@@ -20,10 +20,10 @@ import (
 type File struct {
 	Name     string             `json:"name"`
 	Source   string             `json:"source"`
-	Controls controls           `json:"controls"`
+	Controls Controls           `json:"controls"`
 	Template *template.Template `json:"-"`
 	Parent   ConfigReader       `json:"-"`
-	Branch   interface{}        `json:"-"`
+	Branch   BranchBuilder      `json:"-"`
 	state.Detect
 }
 
@@ -33,7 +33,7 @@ func (file File) Identifier() string {
 
 func (e *File) Process(bb BranchBuilder, rm refmap.Mutator, ctx context.Context) error {
 	if e.Controls.Behaviour == nil {
-		e.Controls.Behaviour = &behaviour{}
+		e.Controls.Behaviour = &Behaviour{}
 	}
 	if e.Controls.Behaviour.Filters == nil {
 		e.Controls.Behaviour.Filters = filters{}
@@ -64,11 +64,11 @@ func (e *File) Process(bb BranchBuilder, rm refmap.Mutator, ctx context.Context)
 		return err
 	}
 
-	_, err = bb.Build(e)
+	e.Branch = bb.Clone()
+	_, err = e.Branch.Build(e)
 	if err != nil {
 		return fmt.Errorf("building branch, %w", err)
 	}
-	e.Branch = bb
 
 	srcDerived, _ := e.Parent.Derived()
 	if e.Source == "" {
@@ -112,6 +112,13 @@ func (file *File) Perform(rm refmap.Grapher, ctx context.Context) error {
 	verboseValue := ctx.Value(refmap.ContextKey("verbose")).(int)
 	srcFilename := filepath.Base(file.Source)
 
+	if file.Controls.Behaviour == nil {
+		if verboseValue >= 2 {
+			fmt.Println("not outputing", srcFilename)
+		}
+		return nil
+	}
+
 	if !strings.Contains(file.Controls.Behaviour.Options, "output") {
 		if verboseValue >= 2 {
 			fmt.Println("not outputing", srcFilename)
@@ -123,8 +130,10 @@ func (file *File) Perform(rm refmap.Grapher, ctx context.Context) error {
 		fmt.Println("writing", srcFilename)
 	}
 
-	_, defaultDstDir := file.Parent.Derived()
-	defaultSrcDir, defaultDstDir := file.Parent.Derived()
+	defaultSrcDir, defaultDstDir := "", ""
+	if file.Parent != nil {
+		defaultSrcDir, defaultDstDir = file.Parent.Derived()
+	}
 
 	RootSrcDir := ctx.Value(refmap.ContextKey("source")).(string)
 	srcDirectory := filepath.Join(RootSrcDir, defaultSrcDir)
@@ -145,7 +154,7 @@ func (file *File) Perform(rm refmap.Grapher, ctx context.Context) error {
 	} else if os.IsNotExist(err) {
 		os.MkdirAll(dstDirectory, os.ModePerm)
 	} else {
-		return err
+		return fmt.Errorf("stating destination file %s -> %w", dstFile, err)
 	}
 
 	contentBuf := &bytes.Buffer{}
@@ -166,29 +175,35 @@ func (file *File) Perform(rm refmap.Grapher, ctx context.Context) error {
 			return err
 		}
 
-		tmpl, err := template.New(srcFile).Parse(string(fileContent))
+		tmpl, err := template.New(srcFile).
+			Option("missingkey=error").
+			Parse(string(fileContent))
 		if err != nil {
 			return err
 		}
 
-		for _, t := range rm.ParentFiles(file.Identifier()) {
-			filename := strings.TrimPrefix(t, "file:")
-			filename = filepath.Join(RootSrcDir, filename)
+		if rm != nil {
+			for _, t := range rm.ParentFiles(file.Identifier()) {
+				filename := strings.TrimPrefix(t, "file:")
+				filename = filepath.Join(RootSrcDir, filename)
 
-			fileContent, err := ioutil.ReadFile(filename)
-			if err != nil {
-				return err
-			}
+				fileContent, err := ioutil.ReadFile(filename)
+				if err != nil {
+					return err
+				}
 
-			tmpl, err = tmpl.New(filename).Parse(string(fileContent))
-			if err != nil {
-				return err
+				tmpl, err = tmpl.New(filename).
+					Option("missingkey=error").
+					Parse(string(fileContent))
+				if err != nil {
+					return err
+				}
 			}
 		}
 
 		err = tmpl.Lookup(srcFile).Execute(contentBuf, file.Branch)
 		if err != nil {
-			return fmt.Errorf("error executing template, %w", err)
+			return fmt.Errorf("error executing template -> %w", err)
 		}
 	}
 
@@ -205,7 +220,7 @@ func (file *File) Perform(rm refmap.Grapher, ctx context.Context) error {
 
 	f, err := os.OpenFile(dstFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
-		return err
+		return fmt.Errorf("opening destination file %s for writing -> %w", dstFile, err)
 	}
 
 	_, err = outputBuf.WriteTo(f)

@@ -11,9 +11,12 @@ import (
 
 	"github.com/oligoden/meta/entity"
 	"github.com/oligoden/meta/refmap"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestFileProcess(t *testing.T) {
+	assert := assert.New(t)
+
 	f := bytes.NewBufferString(`{
 		"name": "abc",
 		"controls": {
@@ -45,10 +48,15 @@ func TestFileProcess(t *testing.T) {
 	ctx = context.WithValue(ctx, refmap.ContextKey("destination"), "testing/out")
 	ctx = context.WithValue(ctx, refmap.ContextKey("verbose"), 0)
 
-	err = e.Process(&entity.Branch{}, rm, ctx)
+	bb := &entity.Branch{}
+
+	err = e.Process(bb, rm, ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	assert.Empty(bb.Filename)
+	assert.Empty(bb.Directories)
 
 	err = rm.Evaluate()
 	if err != nil {
@@ -329,4 +337,45 @@ func TestFilters(t *testing.T) {
 	if exp != got {
 		t.Errorf(`expected "%s", got "%s"`, exp, got)
 	}
+}
+
+func TestTemplateMethods(t *testing.T) {
+	if err := os.MkdirAll("testing", 0755); err != nil {
+		t.Error(err)
+	}
+	defer os.RemoveAll("testing")
+
+	os.Setenv("TEST", "test")
+	c := []byte(`{{.Env "TEST"}}`)
+	if err := ioutil.WriteFile("testing/a.ext", c, 0644); err != nil {
+		t.Error(err)
+	}
+
+	e := &entity.File{
+		Name:   "a.ext",
+		Source: "a.ext",
+		Controls: entity.Controls{
+			Behaviour: &entity.Behaviour{
+				Options: "output",
+			},
+		},
+		Branch: &entity.Branch{},
+	}
+
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, refmap.ContextKey("source"), "testing")
+	ctx = context.WithValue(ctx, refmap.ContextKey("destination"), "testing/out")
+	ctx = context.WithValue(ctx, refmap.ContextKey("verbose"), 3)
+
+	err := e.Perform(nil, ctx)
+	if err != nil {
+		t.Error("error performing action ->", err)
+	}
+
+	content, err := ioutil.ReadFile("testing/out/a.ext")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(t, "test", string(content))
 }

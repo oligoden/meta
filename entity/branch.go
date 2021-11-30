@@ -13,31 +13,29 @@ type ProjectBranch struct {
 	Project     string
 	Testing     bool
 	Environment string
-	*Branch
+	Branch
 }
 
 func (pb *ProjectBranch) Build(e interface{}) (interface{}, error) {
-	ent := e
-
-	pb.Branch = &Branch{}
-	ent, err := pb.Branch.Build(e)
+	ent, err := (&pb.Branch).Build(e)
 	if err != nil {
-		return nil, fmt.Errorf("building default branch, %w", err)
+		return nil, fmt.Errorf("building default branch -> %w", err)
 	}
 
-	for {
-		switch v := ent.(type) {
-		case nil:
-			return nil, fmt.Errorf("encountered nil")
-		case *Project:
-			pb.Project = v.Name
-			pb.Testing = v.Testing
-			pb.Environment = v.Environment
-			return pb, nil
-		default:
-			return nil, fmt.Errorf("encountered unknown, %+v", v)
-		}
+	switch v := ent.(type) {
+	case *Project:
+		pb.Project = v.Name
+		pb.Testing = v.Testing
+		pb.Environment = v.Environment
+		return ent, nil
+	default:
+		return ent, fmt.Errorf("encountered unknown, %+v", v)
 	}
+}
+
+func (b *ProjectBranch) Clone() BranchBuilder {
+	t := *b
+	return &t
 }
 
 type Branch struct {
@@ -48,6 +46,7 @@ type Branch struct {
 
 type BranchBuilder interface {
 	Build(interface{}) (interface{}, error)
+	Clone() BranchBuilder
 }
 
 func (b *Branch) Build(e interface{}) (interface{}, error) {
@@ -72,8 +71,12 @@ func (b *Branch) Build(e interface{}) (interface{}, error) {
 		}
 	}
 
-	fmt.Printf("branch depth exceeded, stuck at %+v\n", ent)
 	return ent, fmt.Errorf("branch depth exceeded")
+}
+
+func (b *Branch) Clone() BranchBuilder {
+	t := *b
+	return &t
 }
 
 type TemplateMethods struct {

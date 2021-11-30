@@ -33,7 +33,7 @@ type Basic struct {
 	Files           map[string]*File      `json:"files"`
 	Execs           map[string]*CLE       `json:"execs"`
 	Import          bool                  `json:"import"`
-	Controls        controls              `json:"controls"`
+	Controls        Controls              `json:"controls"`
 	This            ConfigReader          `json:"-"`
 	Parent          ConfigReader          `json:"-"`
 	posibleMappings map[string]Mapping
@@ -127,7 +127,7 @@ func (e *Basic) Process(bb BranchBuilder, rm refmap.Mutator, ctx context.Context
 	}
 
 	if e.Controls.Behaviour == nil {
-		e.Controls.Behaviour = &behaviour{}
+		e.Controls.Behaviour = &Behaviour{}
 	}
 	if e.Controls.Behaviour.Filters == nil {
 		e.Controls.Behaviour.Filters = filters{}

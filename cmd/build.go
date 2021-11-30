@@ -101,7 +101,8 @@ Use the force flag (-f) to force rebuilding of all files.`,
 		fmt.Println("processing...")
 		rm := refmap.Start()
 
-		err = e.Process(&entity.ProjectBranch{}, rm, ctx)
+		pb := &entity.ProjectBranch{}
+		err = e.Process(pb, rm, ctx)
 		if err != nil {
 			log.Fatalln("error processing project ->", err)
 		}

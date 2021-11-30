@@ -5,8 +5,8 @@ import (
 	"regexp"
 )
 
-type controls struct {
-	Behaviour *behaviour `json:"behaviour"`
+type Controls struct {
+	Behaviour *Behaviour `json:"behaviour"`
 	Mappings  []*Mapping `json:"mappings"`
 }
 
@@ -52,7 +52,7 @@ const (
 	OutputBehaviour = "output"
 )
 
-type behaviour struct {
+type Behaviour struct {
 	Options    string  `json:"options"`
 	Filters    filters `json:"filters"`
 	Recurrence int     `json:"recurrence"`
