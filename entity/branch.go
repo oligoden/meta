@@ -41,6 +41,7 @@ func (b *ProjectBranch) Clone() BranchBuilder {
 type Branch struct {
 	Directories []string
 	Filename    string
+	Vars        map[string]string
 	TemplateMethods
 }
 
@@ -62,9 +63,11 @@ func (b *Branch) Build(e interface{}) (interface{}, error) {
 			return nil, fmt.Errorf("encountered nil")
 		case *Directory:
 			b.Directories = append(b.Directories, v.Name)
+			b.Vars = v.Vars
 			ent = v.Parent
 		case *File:
 			b.Filename = v.Name
+			b.Vars = v.Vars
 			ent = v.Parent
 		default:
 			return ent, nil

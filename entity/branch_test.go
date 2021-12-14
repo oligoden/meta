@@ -24,6 +24,7 @@ func TestFileEncNil(t *testing.T) {
 	assert := assert.New(t)
 	e := &entity.File{
 		Name: "a",
+		Vars: map[string]string{"test": "test"},
 	}
 
 	b := &entity.Branch{}
@@ -33,6 +34,9 @@ func TestFileEncNil(t *testing.T) {
 	assert.Equal("a", b.Filename)
 	assert.Empty(b.Directories)
 	assert.Equal([]string{}, b.Directories)
+	if assert.Contains(b.Vars, "test") {
+		assert.Equal("test", b.Vars["test"])
+	}
 }
 
 func TestDirEncNil(t *testing.T) {
@@ -40,6 +44,7 @@ func TestDirEncNil(t *testing.T) {
 	e := &entity.Directory{
 		Basic: entity.Basic{
 			Name: "a",
+			Vars: map[string]string{"test": "test"},
 		},
 	}
 
@@ -49,6 +54,9 @@ func TestDirEncNil(t *testing.T) {
 	assert.Nil(result)
 	assert.Empty(b.Filename)
 	assert.Equal([]string{"a"}, b.Directories)
+	if assert.Contains(b.Vars, "test") {
+		assert.Equal("test", b.Vars["test"])
+	}
 }
 
 func TestFileDirEncNil(t *testing.T) {
@@ -171,6 +179,7 @@ func TestProjectBranchWithFileDirProject(t *testing.T) {
 			Basic: entity.Basic{
 				Name:   "a",
 				Parent: &entity.Project{},
+				Vars:   map[string]string{"test": "test"},
 			},
 		},
 	}
@@ -181,4 +190,7 @@ func TestProjectBranchWithFileDirProject(t *testing.T) {
 	assert.Equal(&entity.Project{}, result)
 	assert.Equal("a", b.Filename)
 	assert.Equal([]string{"a"}, b.Directories)
+	if assert.Contains(b.Vars, "test") {
+		assert.Equal("test", b.Vars["test"])
+	}
 }

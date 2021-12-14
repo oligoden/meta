@@ -20,6 +20,7 @@ import (
 type File struct {
 	Name     string             `json:"name"`
 	Source   string             `json:"source"`
+	Vars     map[string]string  `json:"vars"`
 	Controls Controls           `json:"controls"`
 	Template *template.Template `json:"-"`
 	Parent   ConfigReader       `json:"-"`
@@ -56,6 +57,15 @@ func (e *File) Process(bb BranchBuilder, rm refmap.Mutator, ctx context.Context)
 	for i, filter := range e.Parent.Filters() {
 		if _, exist := e.Controls.Behaviour.Filters[i]; !exist {
 			e.Controls.Behaviour.Filters[i] = filter
+		}
+	}
+
+	if e.Vars == nil {
+		e.Vars = map[string]string{}
+	}
+	for k, v := range e.Parent.Variables() {
+		if _, ok := e.Vars[k]; !ok {
+			e.Vars[k] = v
 		}
 	}
 
@@ -272,6 +282,8 @@ func commentFilter(r, w *bytes.Buffer) error {
 				}
 				fmt.Fprintln(w, line)
 			}
+		} else if strings.Contains(line, "//+") {
+			fmt.Fprintln(w, strings.Replace(line, "//+", "", 1))
 		} else {
 			fmt.Fprintln(w, line)
 		}

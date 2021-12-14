@@ -17,6 +17,22 @@ import (
 func TestFileProcess(t *testing.T) {
 	assert := assert.New(t)
 
+	eFile := &entity.File{}
+
+	e := &entity.Basic{
+		Vars:  map[string]string{"test": "test"},
+		Files: map[string]*entity.File{"a.ext": eFile},
+	}
+
+	rm := refmap.Start()
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, refmap.ContextKey("verbose"), 0)
+	if assert.NoError(e.Process(&entity.Branch{}, rm, ctx)) {
+		assert.Equal("test", eFile.Vars["test"])
+	}
+}
+
+func TestFileProcessExt(t *testing.T) {
 	f := bytes.NewBufferString(`{
 		"name": "abc",
 		"controls": {
@@ -48,15 +64,10 @@ func TestFileProcess(t *testing.T) {
 	ctx = context.WithValue(ctx, refmap.ContextKey("destination"), "testing/out")
 	ctx = context.WithValue(ctx, refmap.ContextKey("verbose"), 0)
 
-	bb := &entity.Branch{}
-
-	err = e.Process(bb, rm, ctx)
+	err = e.Process(&entity.Branch{}, rm, ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	assert.Empty(bb.Filename)
-	assert.Empty(bb.Directories)
 
 	err = rm.Evaluate()
 	if err != nil {
@@ -78,7 +89,7 @@ func TestFileProcess(t *testing.T) {
 		t.Error("expected non empty hash")
 	}
 
-	exp = "&{[] a.ext {}} or &{[] b.ext {}}"
+	exp = "&{[] a.ext map[] {}} or &{[] b.ext map[] {}}"
 	got = fmt.Sprint(file.Branch)
 	if !strings.Contains(exp, got) {
 		t.Errorf(`expected "%s", got "%s"`, exp, got)

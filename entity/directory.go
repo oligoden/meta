@@ -70,6 +70,15 @@ func (e *Directory) Process(bb BranchBuilder, rm refmap.Mutator, ctx context.Con
 
 	e.This = e
 
+	if e.Vars == nil {
+		e.Vars = map[string]string{}
+	}
+	for k, v := range e.Parent.Variables() {
+		if _, ok := e.Vars[k]; !ok {
+			e.Vars[k] = v
+		}
+	}
+
 	err := e.Basic.Process(bb, rm, ctx)
 	if err != nil {
 		return err

@@ -22,6 +22,7 @@ type ConfigReader interface {
 	Options() string
 	ContainsFilter(string) bool
 	Filters() filters
+	Variables() map[string]string
 	refmap.Actioner
 }
 
@@ -29,6 +30,7 @@ type Basic struct {
 	Name            string                `json:"name"`
 	SrcDerived      string                `json:"-"`
 	DstDerived      string                `json:"-"`
+	Vars            map[string]string     `json:"vars"`
 	Directories     map[string]*Directory `json:"directories"`
 	Files           map[string]*File      `json:"files"`
 	Execs           map[string]*CLE       `json:"execs"`
@@ -50,6 +52,10 @@ func (Basic) Perform(refmap.Grapher, context.Context) error {
 
 func (b Basic) Output() string {
 	return ""
+}
+
+func (e Basic) Variables() map[string]string {
+	return e.Vars
 }
 
 func (b Basic) Derived() (string, string) {

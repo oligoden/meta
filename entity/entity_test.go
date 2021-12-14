@@ -14,60 +14,38 @@ import (
 )
 
 func TestLoad(t *testing.T) {
+	assert := assert.New(t)
 	e := &entity.Basic{}
 
 	f := bytes.NewBufferString(`{bad json}`)
-	err := e.Load(f)
-	if err == nil {
-		t.Error("expected error")
-	}
+	assert.Error(e.Load(f))
 
 	f = bytes.NewBufferString(`{
-		"name":"abc",
-		"directories":{
-			"a":{}
-		}
+		"name":"abc"
 	}`)
-	err = e.Load(f)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(e.Load(f))
 
-	exp := "abc"
-	got := e.Name
-	if got != exp {
-		t.Errorf(`expected "%s", got "%s"`, exp, got)
-	}
+	assert.Equal("abc", e.Name)
 }
 
 func TestBasicProcess(t *testing.T) {
-	f := bytes.NewBufferString(`{
-			"name":"abc"
-		}`)
-	e := &entity.Basic{}
-	err := e.Load(f)
-	if err != nil {
-		t.Error(err)
+	assert := assert.New(t)
+	e := &entity.Basic{
+		Name: "abc",
 	}
 
 	branch := &entity.Branch{}
 	rm := refmap.Start()
-
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, refmap.ContextKey("source"), "testing")
 	ctx = context.WithValue(ctx, refmap.ContextKey("destination"), "testing/out")
 	ctx = context.WithValue(ctx, refmap.ContextKey("verbose"), 0)
 
-	err = e.Process(branch, rm, ctx)
-	if err != nil {
-		t.Fatal(err)
+	if assert.NoError(e.Process(branch, rm, ctx)) {
+		assert.NotEmpty(e.Hash())
 	}
 
-	if e.Hash() == "" {
-		t.Error("expected non empty hash")
-	}
-
-	err = rm.Evaluate()
+	err := rm.Evaluate()
 	if err != nil {
 		t.Error("error evaluating refmap", err)
 	}

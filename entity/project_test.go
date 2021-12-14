@@ -47,7 +47,8 @@ func TestProjectLoadFile(t *testing.T) {
 
 	assert.Equal(t, "prj:abc", e.Identifier())
 }
-func TestProjectProcess(t *testing.T) {
+
+func TestProjectProcessExt(t *testing.T) {
 	f := bytes.NewBufferString(`{"name": "abc"}`)
 
 	e := entity.NewProject()

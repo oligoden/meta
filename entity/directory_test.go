@@ -12,9 +12,28 @@ import (
 
 	"github.com/oligoden/meta/entity"
 	"github.com/oligoden/meta/refmap"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestDirProcess(t *testing.T) {
+	assert := assert.New(t)
+
+	eDir := &entity.Directory{}
+
+	e := &entity.Basic{
+		Vars:        map[string]string{"test": "test"},
+		Directories: map[string]*entity.Directory{"a.ext": eDir},
+	}
+
+	rm := refmap.Start()
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, refmap.ContextKey("verbose"), 0)
+	if assert.NoError(e.Process(&entity.Branch{}, rm, ctx)) {
+		assert.Equal("test", eDir.Vars["test"])
+	}
+}
+
+func TestDirProcessExt(t *testing.T) {
 	f := bytes.NewBufferString(`{
 		"name": "abc",
 		"controls": {
