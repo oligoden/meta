@@ -136,6 +136,7 @@ var upCmd = &cobra.Command{
 			fmt.Println("error evaluating graph", err)
 			return
 		}
+		rm.Output()
 
 		fmt.Println("building project...")
 		for _, ref := range rm.ChangedRefs() {
@@ -242,6 +243,7 @@ var upCmd = &cobra.Command{
 							break
 						}
 						rm.Evaluate()
+						rm.Output()
 					}
 					rm.Propagate()
 
