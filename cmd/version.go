@@ -1,5 +1,5 @@
 /*
-Copyright © 2021 Anro le Roux <anro@oligoden.com>
+Copyright © 2022 Anro le Roux <anro@oligoden.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

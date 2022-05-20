@@ -10,13 +10,15 @@ import (
 
 func TestNormalAdding(t *testing.T) {
 	rm := refmap.Start()
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, refmap.ContextKey("verbose"), 0)
 	t1 := &testRef{}
-	rm.AddRef("a", t1)
+	rm.AddRef(ctx, "a", t1)
 	t2 := &testRef{}
-	rm.AddRef("b", t2)
+	rm.AddRef(ctx, "b", t2)
 	t3 := &testRef{}
-	rm.AddRef("c", t3)
-	rm.MapRef("a", "b")
+	rm.AddRef(ctx, "c", t3)
+	rm.MapRef(ctx, "a", "b")
 	rm.Evaluate()
 	rm.Finish()
 
@@ -48,10 +50,12 @@ func TestNormalAdding(t *testing.T) {
 
 func TestAddingUpdatedRef(t *testing.T) {
 	rm := refmap.Start()
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, refmap.ContextKey("verbose"), 0)
 	t1 := &testRef{hash: "a", status: 3}
-	rm.AddRef("a", t1)
+	rm.AddRef(ctx, "a", t1)
 	t2 := &testRef{hash: "b", status: 3}
-	rm.AddRef("a", t2)
+	rm.AddRef(ctx, "a", t2)
 	rm.Evaluate()
 
 	exp := "b"
