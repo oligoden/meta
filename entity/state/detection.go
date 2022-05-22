@@ -2,7 +2,6 @@ package state
 
 import (
 	"crypto/sha1"
-	"encoding/json"
 	"fmt"
 )
 
@@ -19,7 +18,7 @@ type Detect struct {
 	state uint8
 }
 
-func NewDetect() *Detect {
+func New() *Detect {
 	return &Detect{
 		state: Added,
 	}
@@ -29,14 +28,10 @@ func (cd Detect) Hash() string {
 	return cd.hash
 }
 
-func (cd *Detect) HashOf() error {
-	json, err := json.Marshal(*cd)
-	if err != nil {
-		return err
-	}
-
+func (cd *Detect) ProcessState(e string) error {
+	data := []byte(e)
 	h := sha1.New()
-	_, err = h.Write(json)
+	_, err := h.Write(data)
 	if err != nil {
 		return err
 	}
@@ -56,9 +51,14 @@ func (cd *Detect) HashOf() error {
 	return nil
 }
 
-func (cd *Detect) State(state ...uint8) uint8 {
-	if len(state) > 0 {
-		cd.state = state[0]
-	}
+func (cd *Detect) State() uint8 {
 	return cd.state
+}
+
+func (cd *Detect) ClearState() {
+	cd.state = Stable
+}
+
+func (cd *Detect) FlagState() {
+	cd.state = Updated
 }

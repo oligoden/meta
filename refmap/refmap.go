@@ -70,7 +70,9 @@ func Start() *Store {
 // Actioner performs actions on the data provided.
 type Actioner interface {
 	Perform(Grapher, context.Context) error
-	State(...uint8) uint8
+	State() uint8
+	FlagState()
+	ClearState()
 	Hash() string
 	Identifier() string
 	Output() string

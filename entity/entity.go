@@ -39,7 +39,7 @@ type Basic struct {
 	This            ConfigReader          `json:"-"`
 	Parent          ConfigReader          `json:"-"`
 	posibleMappings map[string]Mapping
-	state.Detect
+	*state.Detect
 }
 
 func (b Basic) Identifier() string {
@@ -84,7 +84,7 @@ func (e *Basic) Process(bb BranchBuilder, rm refmap.Mutator, ctx context.Context
 
 	rm.AddRef(ctx, e.This.Identifier(), e.This)
 
-	err := e.HashOf()
+	err := e.ProcessState()
 	if err != nil {
 		return err
 	}
@@ -172,6 +172,7 @@ func (e *Basic) Process(bb BranchBuilder, rm refmap.Mutator, ctx context.Context
 	for name := range e.Files {
 		e.Files[name].Name = name
 		e.Files[name].Parent = e.This
+		e.Files[name].Detect = state.New()
 		err := e.Files[name].Process(bb, rm, ctx)
 		if err != nil {
 			return err
@@ -181,6 +182,7 @@ func (e *Basic) Process(bb BranchBuilder, rm refmap.Mutator, ctx context.Context
 	for name := range e.Directories {
 		e.Directories[name].Name = name
 		e.Directories[name].Parent = e.This
+		e.Directories[name].Detect = state.New()
 		err := e.Directories[name].Process(bb, rm, ctx)
 		if err != nil {
 			return err
@@ -190,6 +192,7 @@ func (e *Basic) Process(bb BranchBuilder, rm refmap.Mutator, ctx context.Context
 	for name := range e.Execs {
 		e.Execs[name].Name = name
 		e.Execs[name].Parent = e.This
+		e.Execs[name].Detect = state.New()
 		err := e.Execs[name].Process(rm, ctx)
 		if err != nil {
 			return err
@@ -225,29 +228,14 @@ func (e *Basic) Process(bb BranchBuilder, rm refmap.Mutator, ctx context.Context
 	return nil
 }
 
-// const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-// const (
-// 	letterIdxBits = 6                    // 6 bits to represent a letter index
-// 	letterIdxMask = 1<<letterIdxBits - 1 // All 1-bits, as many as letterIdxBits
-// 	letterIdxMax  = 63 / letterIdxBits   // # of letter indices fitting in 63 bits
-// )
-
-// var src = rand.NewSource(time.Now().UnixNano())
-
-// //RandString creates a random string (https://stackoverflow.com/a/31832326)
-// func RandString(n int) string {
-// 	b := make([]byte, n)
-// 	for i, cache, remain := n-1, src.Int63(), letterIdxMax; i >= 0; {
-// 		if remain == 0 {
-// 			cache, remain = src.Int63(), letterIdxMax
-// 		}
-// 		if idx := int(cache & letterIdxMask); idx < len(letterBytes) {
-// 			b[i] = letterBytes[idx]
-// 			i--
-// 		}
-// 		cache >>= letterIdxBits
-// 		remain--
-// 	}
-
-// 	return string(b)
-// }
+func (e *Basic) ProcessState() error {
+	tmp := *e
+	tmp.Directories = map[string]*Directory{}
+	tmp.Files = map[string]*File{}
+	tmp.Execs = map[string]*CLE{}
+	tmp.This = nil
+	tmp.Parent = nil
+	tmp.posibleMappings = map[string]Mapping{}
+	tmp.Detect = nil
+	return e.Detect.ProcessState(fmt.Sprintf("%+v", tmp))
+}

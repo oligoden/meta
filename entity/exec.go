@@ -22,11 +22,11 @@ type CLE struct {
 	STDOut  *bytes.Buffer
 	STDErr  *bytes.Buffer
 	Parent  ConfigReader `json:"-"`
-	state.Detect
+	*state.Detect
 }
 
 func (exec *CLE) calculateHash() error {
-	err := exec.HashOf()
+	err := exec.ProcessState()
 	if err != nil {
 		return err
 	}
@@ -55,7 +55,7 @@ func (e CLE) Derived() (string, string) {
 }
 
 func (e *CLE) Process(rm refmap.Mutator, ctx context.Context) error {
-	err := e.HashOf()
+	err := e.ProcessState()
 	if err != nil {
 		return err
 	}
@@ -115,4 +115,11 @@ func (e *CLE) Perform(rm refmap.Grapher, ctx context.Context) error {
 		cmd.Env = append(os.Environ(), fmt.Sprintf(`%s=%s`, k, v))
 	}
 	return cmd.Run()
+}
+
+func (e *CLE) ProcessState() error {
+	tmp := *e
+	tmp.Parent = nil
+	tmp.Detect = nil
+	return e.Detect.ProcessState(fmt.Sprintf("%+v", tmp))
 }

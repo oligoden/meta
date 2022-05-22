@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/oligoden/meta/entity"
+	"github.com/oligoden/meta/entity/state"
 	"github.com/oligoden/meta/refmap"
 	"github.com/stretchr/testify/assert"
 )
@@ -18,11 +19,16 @@ import (
 func TestDirProcess(t *testing.T) {
 	assert := assert.New(t)
 
-	eDir := &entity.Directory{}
+	eDir := &entity.Directory{
+		Basic: entity.Basic{
+			Detect: state.New(),
+		},
+	}
 
 	e := &entity.Basic{
 		Vars:        map[string]string{"test": "test"},
 		Directories: map[string]*entity.Directory{"a.ext": eDir},
+		Detect:      state.New(),
 	}
 
 	rm := refmap.Start()
@@ -70,7 +76,7 @@ func TestDirProcessExt(t *testing.T) {
 		}
 	}`)
 
-	e := &entity.Basic{}
+	e := &entity.Basic{Detect: state.New()}
 	err := e.Load(f)
 	if err != nil {
 		t.Fatal("error loading config ->", err)
@@ -242,7 +248,7 @@ func TestDirPerform(t *testing.T) {
 		}
 	}`)
 
-	e := &entity.Basic{}
+	e := &entity.Basic{Detect: state.New()}
 	err := e.Load(f)
 	if err != nil {
 		t.Error("loading config")

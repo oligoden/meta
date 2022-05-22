@@ -5,11 +5,14 @@ import (
 	"fmt"
 	"io"
 	"os"
+
+	"github.com/oligoden/meta/entity/state"
 )
 
 func NewProject() *Project {
 	e := &Project{}
 	e.This = e
+	e.Detect = state.New()
 	return e
 }
 

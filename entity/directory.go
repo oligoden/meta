@@ -47,17 +47,6 @@ func (d Directory) BehaviourOptionsContain(o string) bool {
 	return strings.Contains(d.Controls.Behaviour.Options, o)
 }
 
-func (d *Directory) HashOf() error {
-	dirTemp := *d
-	dirTemp.Directories = nil
-	dirTemp.Files = nil
-	err := d.Basic.HashOf()
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 func (e *Directory) Process(bb BranchBuilder, rm refmap.Mutator, ctx context.Context) error {
 	SrcDerived, DstDerived := e.Parent.Derived()
 

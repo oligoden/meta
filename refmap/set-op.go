@@ -39,15 +39,13 @@ func (o SetOp) handle(refs map[string]Actioner, g *graph.Graph) {
 		finish(refs)
 		o.Err <- nil
 	default:
-		var value uint8
 		if o.Val == "update" {
-			value = state.Updated
 		} else {
 			o.Err <- fmt.Errorf("unknown value")
 			return
 		}
 		if ref, found := refs[o.Key]; found {
-			ref.State(value)
+			ref.FlagState()
 			o.Err <- nil
 			return
 		}
@@ -78,7 +76,7 @@ func propagate(refs map[string]Actioner, g *graph.Graph) {
 				update = true
 			}
 			if update {
-				refs[node].State(state.Updated)
+				refs[node].FlagState()
 			}
 			return nil
 		}, node)
@@ -93,7 +91,7 @@ func propagateFrom(node string, refs map[string]Actioner, g *graph.Graph) {
 			update = true
 		}
 		if update {
-			refs[node].State(state.Updated)
+			refs[node].FlagState()
 		}
 		return nil
 	}, node)
@@ -107,7 +105,7 @@ func finish(refs map[string]Actioner) {
 		// 			continue
 		// 		}
 
-		ref.State(state.Stable)
+		ref.ClearState()
 	}
 }
 

@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/oligoden/meta/entity"
+	"github.com/oligoden/meta/entity/state"
 	"github.com/oligoden/meta/refmap"
 	"github.com/stretchr/testify/assert"
 )
@@ -31,7 +32,8 @@ func TestLoad(t *testing.T) {
 func TestBasicProcess(t *testing.T) {
 	assert := assert.New(t)
 	e := &entity.Basic{
-		Name: "abc",
+		Name:   "abc",
+		Detect: state.New(),
 	}
 
 	branch := &entity.Branch{}
@@ -80,7 +82,7 @@ func TestImportProcess(t *testing.T) {
 		"name":"abc",
 		"import":true
 	}`)
-	e := &entity.Basic{}
+	e := &entity.Basic{Detect: state.New()}
 	err := e.Load(f)
 	if err != nil {
 		t.Fatal(err)

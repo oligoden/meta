@@ -1,3 +1,4 @@
+//go:build linux || darwin
 // +build linux darwin
 
 package entity_test
@@ -11,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/oligoden/meta/entity"
+	"github.com/oligoden/meta/entity/state"
 	"github.com/oligoden/meta/refmap"
 	"github.com/stretchr/testify/assert"
 )
@@ -34,7 +36,7 @@ func TestExecProcess(t *testing.T) {
 		}
 	}`)
 
-	e := &entity.Basic{}
+	e := &entity.Basic{Detect: state.New()}
 	err := e.Load(f)
 	if err != nil {
 		t.Error("loading config")

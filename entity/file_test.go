@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/oligoden/meta/entity"
+	"github.com/oligoden/meta/entity/state"
 	"github.com/oligoden/meta/refmap"
 	"github.com/stretchr/testify/assert"
 )
@@ -20,8 +21,9 @@ func TestFileProcess(t *testing.T) {
 	eFile := &entity.File{}
 
 	e := &entity.Basic{
-		Vars:  map[string]string{"test": "test"},
-		Files: map[string]*entity.File{"a.ext": eFile},
+		Vars:   map[string]string{"test": "test"},
+		Files:  map[string]*entity.File{"a.ext": eFile},
+		Detect: state.New(),
 	}
 
 	rm := refmap.Start()
@@ -51,7 +53,7 @@ func TestFileProcessExt(t *testing.T) {
 		}
 	}`)
 
-	e := &entity.Basic{}
+	e := &entity.Basic{Detect: state.New()}
 	err := e.Load(f)
 	if err != nil {
 		t.Error("loading config")
@@ -158,7 +160,7 @@ func TestFilePerform(t *testing.T) {
 		}
 	}`)
 
-	e := &entity.Basic{}
+	e := &entity.Basic{Detect: state.New()}
 	err := e.Load(f)
 	if err != nil {
 		t.Error("loading config")
@@ -238,7 +240,7 @@ func TestFilePerformCopy(t *testing.T) {
 		}
 	}`)
 
-	e := &entity.Basic{}
+	e := &entity.Basic{Detect: state.New()}
 	err := e.Load(f)
 	if err != nil {
 		t.Error("loading config")
@@ -306,7 +308,7 @@ func TestFilters(t *testing.T) {
 		}
 	}`)
 
-	e := &entity.Basic{}
+	e := &entity.Basic{Detect: state.New()}
 	err := e.Load(f)
 	if err != nil {
 		t.Error("error loading config", err)

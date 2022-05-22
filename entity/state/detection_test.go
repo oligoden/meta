@@ -5,53 +5,52 @@ import (
 	"testing"
 
 	"github.com/oligoden/meta/entity/state"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestHash(t *testing.T) {
-	d := state.Detect{}
-
-	err := d.HashOf("hash-this")
-	if err != nil {
-		t.Error(err)
+	d := testEntity{
+		Name:   "a",
+		Detect: state.New(),
 	}
 
-	if d.Hash() == "" {
-		t.Errorf(`expected hash, got empty sting`)
+	assert := assert.New(t)
+	if assert.NoError(d.ProcessState()) {
+		assert.NotEmpty(d.Hash())
+		assert.Equal(state.Added, d.State())
 	}
+	d.ClearState()
 
-	exp := fmt.Sprintf("%d", state.Added)
-	got := fmt.Sprintf("%d", d.State())
-	if got != exp {
-		t.Errorf(`expected "%s", got "%s"`, exp, got)
-	}
+	hash1 := d.Hash()
 
-	err = d.HashOf("hash-this")
-	if err != nil {
-		t.Error(err)
+	if assert.NoError(d.ProcessState()) {
+		assert.Equal(state.Checked, d.State())
 	}
+	d.ClearState()
 
-	exp = status[state.Checked]
-	got = status[d.State()]
-	if got != exp {
-		t.Errorf(`expected "%s", got "%s"`, exp, got)
+	d.Name = "b"
+	if assert.NoError(d.ProcessState()) {
+		assert.Equal(state.Updated, d.State())
+		assert.NotEqual(hash1, d.Hash())
 	}
+	d.ClearState()
 
-	err = d.HashOf("hash-something-else")
-	if err != nil {
-		t.Error(err)
+	if assert.NoError(d.ProcessState()) {
+		assert.Equal(state.Checked, d.State())
 	}
+	d.ClearState()
 
-	exp = status[state.Updated]
-	got = status[d.State()]
-	if got != exp {
-		t.Errorf(`expected "%s", got "%s"`, exp, got)
-	}
+	d.FlagState()
+	assert.Equal(state.Updated, d.State())
 }
 
-var status = map[uint8]string{
-	state.Stable:  "Stable",
-	state.Checked: "Checked",
-	state.Updated: "Updated",
-	state.Added:   "Added",
-	state.Remove:  "Remove",
+type testEntity struct {
+	Name string
+	*state.Detect
+}
+
+func (e testEntity) ProcessState() error {
+	tmp := e
+	tmp.Detect = nil
+	return e.Detect.ProcessState(fmt.Sprintf("%+v", tmp))
 }

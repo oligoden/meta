@@ -25,7 +25,7 @@ type File struct {
 	Template *template.Template `json:"-"`
 	Parent   ConfigReader       `json:"-"`
 	Branch   BranchBuilder      `json:"-"`
-	state.Detect
+	*state.Detect
 }
 
 func (file File) Identifier() string {
@@ -69,7 +69,7 @@ func (e *File) Process(bb BranchBuilder, rm refmap.Mutator, ctx context.Context)
 		}
 	}
 
-	err := e.HashOf()
+	err := e.ProcessState()
 	if err != nil {
 		return err
 	}
@@ -293,4 +293,12 @@ func commentFilter(r, w *bytes.Buffer) error {
 	}
 
 	return nil
+}
+
+func (e File) ProcessState() error {
+	tmp := e
+	tmp.Parent = nil
+	tmp.Branch = nil
+	tmp.Detect = nil
+	return e.Detect.ProcessState(fmt.Sprintf("%+v", tmp))
 }

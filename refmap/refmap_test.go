@@ -6,68 +6,70 @@ import (
 
 	"github.com/oligoden/meta/entity/state"
 	"github.com/oligoden/meta/refmap"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNormalAdding(t *testing.T) {
 	rm := refmap.Start()
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, refmap.ContextKey("verbose"), 0)
-	t1 := &testRef{}
+
+	t1 := newTestRef("x")
+	t1.ProcessState("x")
 	rm.AddRef(ctx, "a", t1)
-	t2 := &testRef{}
+
+	t2 := newTestRef("y")
+	t2.ProcessState("y")
 	rm.AddRef(ctx, "b", t2)
-	t3 := &testRef{}
+
+	t3 := newTestRef("z")
+	t3.ProcessState("z")
 	rm.AddRef(ctx, "c", t3)
+
 	rm.MapRef(ctx, "a", "b")
 	rm.Evaluate()
 	rm.Finish()
 
-	exp := refmap.StatusText[state.Stable]
-	got := refmap.StatusText[t1.State()]
-	if got != exp {
-		t.Errorf(`expected "%s", got "%s"`, exp, got)
-	}
-	exp = refmap.StatusText[state.Stable]
-	got = refmap.StatusText[t2.State()]
-	if got != exp {
-		t.Errorf(`expected "%s", got "%s"`, exp, got)
-	}
+	assert := assert.New(t)
+	assert.Equal(state.Stable, t1.State())
+	assert.Equal(state.Stable, t2.State())
 
 	rm.SetUpdate("a")
-	exp = refmap.StatusText[state.Updated]
-	got = refmap.StatusText[t1.State()]
-	if got != exp {
-		t.Errorf(`expected "%s", got "%s"`, exp, got)
-	}
+	assert.Equal(state.Updated, t1.State())
 
 	rm.Propagate()
-	exp = refmap.StatusText[state.Updated]
-	got = refmap.StatusText[t2.State()]
-	if got != exp {
-		t.Errorf(`expected "%s", got "%s"`, exp, got)
-	}
+	assert.Equal(state.Updated, t2.State())
 }
 
 func TestAddingUpdatedRef(t *testing.T) {
 	rm := refmap.Start()
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, refmap.ContextKey("verbose"), 0)
-	t1 := &testRef{hash: "a", status: 3}
+
+	t1 := newTestRef("x")
+	t1.ProcessState("x")
 	rm.AddRef(ctx, "a", t1)
-	t2 := &testRef{hash: "b", status: 3}
+
+	t2 := newTestRef("y")
+	t2.ProcessState("y")
+	hash := t2.Hash()
 	rm.AddRef(ctx, "a", t2)
+
 	rm.Evaluate()
 
-	exp := "b"
-	got := rm.ChangedRefs()[0].Hash()
-	if got != exp {
-		t.Errorf(`expected "%s", got "%s"`, exp, got)
-	}
+	assert.Equal(t, hash, rm.ChangedRefs()[0].Hash())
 }
 
 type testRef struct {
-	status uint8
-	hash   string
+	Name string
+	*state.Detect
+}
+
+func newTestRef(name string) *testRef {
+	return &testRef{
+		Name:   name,
+		Detect: state.New(),
+	}
 }
 
 func (testRef) Identifier() string {
@@ -80,16 +82,4 @@ func (testRef) Output() string {
 
 func (testRef) Perform(rm refmap.Grapher, c context.Context) error {
 	return nil
-}
-
-func (tf *testRef) State(s ...uint8) uint8 {
-	if len(s) > 0 {
-		tf.status = s[0]
-	}
-
-	return tf.status
-}
-
-func (tf testRef) Hash() string {
-	return tf.hash
 }
