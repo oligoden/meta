@@ -58,7 +58,12 @@ func Start() *Store {
 					fmt.Println("error outputting graph ->", err)
 					break
 				}
-				buf := s.graph.Output()
+				buf := s.graph.Output(
+					"^prj", `[style=filled, fillcolor="slateblue1"]`,
+					"^dir", `[style=filled, fillcolor="lightblue" shape="folder"]`,
+					"^file", `[style=filled, fillcolor="lightgreen" shape="note"]`,
+					"^exec", `[style=filled, fillcolor="lightcoral" shape="octagon"]`,
+				)
 				buf.WriteTo(f)
 			}
 		}
