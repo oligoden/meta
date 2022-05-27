@@ -46,17 +46,17 @@ func (e *Project) Load(f io.Reader) error {
 func (e *Project) LoadFile(fn string) error {
 	f, err := os.Open(fn)
 	if err != nil {
-		return fmt.Errorf("opening file -> %w", err)
+		return fmt.Errorf("opening file, %w", err)
 	}
 
 	err = e.Load(f)
 	if err != nil {
-		return fmt.Errorf("loading file -> %w", err)
+		return fmt.Errorf("loading file, %w", err)
 	}
 
 	err = f.Close()
 	if err != nil {
-		return fmt.Errorf("closing file -> %w", err)
+		return fmt.Errorf("closing file, %w", err)
 	}
 
 	fmt.Println("loaded config file")

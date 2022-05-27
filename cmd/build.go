@@ -1,30 +1,9 @@
-/*
-Copyright © 2022 Anro le Roux <anro@oligoden.com>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-*/
 package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -38,14 +17,17 @@ import (
 // buildCmd represents the build command
 var buildCmd = &cobra.Command{
 	Use:   "build",
-	Short: "Build the source code and return",
-	Long: `Use build to do a once-off build of your source code.
-By default, only files that do not exist will be build.
-Use the force flag (-f) to force rebuilding of all files.`,
+	Short: "Build the source code and exit",
+	Long: `Use build to do a once-off build and exit.
+Refer to 'meta up' to keep running and watch for changes.
+
+See https://oligoden.com/meta for more information.`,
+
 	Run: func(cmd *cobra.Command, args []string) {
 		metaFileName, err := cmd.Flags().GetString("metafile")
 		if err != nil {
-			log.Fatalln("error getting config filename flag ->", err)
+			fmt.Println("error getting config filename flag,", err)
+			os.Exit(1)
 		}
 
 		verboseValue, _ := cmd.Flags().GetInt("verbose")
@@ -53,18 +35,33 @@ Use the force flag (-f) to force rebuilding of all files.`,
 			fmt.Println("verbosity level", verboseValue)
 		}
 
+		_, err = os.Stat(metaFileName)
+		if errors.Is(err, os.ErrNotExist) {
+			fmt.Printf(`project config "%s" not found\n`, metaFileName)
+			os.Exit(0)
+		}
+
 		e := entity.NewProject()
 		err = e.LoadFile(metaFileName)
 		if err != nil {
-			log.Fatalln("error loading project config ->", err)
+			fmt.Println("error loading project config,", err)
+			os.Exit(1)
 		}
 
 		metaOverrideFileName := strings.TrimSuffix(metaFileName, filepath.Ext(metaFileName)) + ".override" + filepath.Ext(metaFileName)
 		if _, err := os.Stat(metaOverrideFileName); err == nil {
 			err = e.LoadFile(metaOverrideFileName)
 			if err != nil {
-				log.Fatalln("error loading project config ->", err)
+				fmt.Println("error loading project config,", err)
+				os.Exit(1)
 			}
+		} else if errors.Is(err, os.ErrNotExist) {
+			if verboseValue >= 1 {
+				fmt.Println("no config override file used")
+			}
+		} else {
+			fmt.Println("error loading project config override,", err)
+			fmt.Println("continuing with normal config")
 		}
 
 		if verboseValue >= 1 {
@@ -77,7 +74,8 @@ Use the force flag (-f) to force rebuilding of all files.`,
 
 		workLocation, err := cmd.Flags().GetString("work")
 		if err != nil {
-			log.Fatalln("error getting work location flag ->", err)
+			fmt.Println("error getting work location flag,", err)
+			os.Exit(1)
 		}
 
 		if workLocation == "" {
@@ -86,7 +84,8 @@ Use the force flag (-f) to force rebuilding of all files.`,
 
 		destLocation, err := cmd.Flags().GetString("dest")
 		if err != nil {
-			log.Fatalln("error getting destination location flag ->", err)
+			fmt.Println("error getting destination location flag,", err)
+			os.Exit(1)
 		}
 
 		if destLocation == "" {
@@ -104,12 +103,14 @@ Use the force flag (-f) to force rebuilding of all files.`,
 		pb := &entity.ProjectBranch{}
 		err = e.Process(pb, rm, ctx)
 		if err != nil {
-			log.Fatalln("error processing project ->", err)
+			fmt.Println("error processing project,", err)
+			os.Exit(1)
 		}
 
 		err = rm.Evaluate()
 		if err != nil {
-			log.Fatalln("error evaluating graph ->", err)
+			fmt.Println("error evaluating graph,", err)
+			os.Exit(1)
 		}
 		rm.Output()
 

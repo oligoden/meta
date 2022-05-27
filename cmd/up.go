@@ -1,28 +1,8 @@
-/*
-Copyright © 2022 Anro le Roux <anro@oligoden.com>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-*/
 package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -40,16 +20,30 @@ import (
 // upCmd represents the up command
 var upCmd = &cobra.Command{
 	Use:   "up",
-	Short: "Bring the services up",
-	Long:  `Using up will read and watch all files.`,
+	Short: "Continuously run Meta and watch for changes",
+	Long: `meta up will stay running until Ctrl-C is pressed.
+It will watch for changes to files or the config and rebuild
+dependent nodes if an update is detected.
+	
+See https://oligoden.com/meta for more information.`,
+
 	Run: func(cmd *cobra.Command, args []string) {
 		metaFileName, err := cmd.Flags().GetString("metafile")
 		if err != nil {
-			log.Fatalln("error getting meta filename", err)
-			return
+			fmt.Println("error getting config filename flag,", err)
+			os.Exit(1)
 		}
 
 		verboseValue, _ := cmd.Flags().GetInt("verbose")
+		if verboseValue > 0 {
+			fmt.Println("verbosity level", verboseValue)
+		}
+
+		_, err = os.Stat(metaFileName)
+		if errors.Is(err, os.ErrNotExist) {
+			fmt.Printf(`project config "%s" not found\n`, metaFileName)
+			os.Exit(0)
+		}
 
 		fmt.Println("loading metafile")
 		f, err := os.Open(metaFileName)
