@@ -19,11 +19,11 @@ func (o SetOp) handle(refs map[string]Actioner, g *graph.Graph) {
 	// 	o.Err <- nil
 	// 	return
 	// }
-	// if o.Key == "assess" {
-	// 	assess(refs)
-	// 	o.Err <- nil
-	// 	return
-	// }
+	if o.Key == "assess" {
+		assess(refs)
+		o.Err <- nil
+		return
+	}
 	switch o.Key {
 	case "propagate":
 		if o.Val == "" {
@@ -36,7 +36,7 @@ func (o SetOp) handle(refs map[string]Actioner, g *graph.Graph) {
 		g.Evaluate()
 		o.Err <- nil
 	case "finish":
-		finish(refs)
+		finish(refs, g)
 		o.Err <- nil
 	default:
 		if o.Val == "update" {
@@ -44,6 +44,7 @@ func (o SetOp) handle(refs map[string]Actioner, g *graph.Graph) {
 			o.Err <- fmt.Errorf("unknown value")
 			return
 		}
+
 		if ref, found := refs[o.Key]; found {
 			ref.FlagState()
 			o.Err <- nil
@@ -54,21 +55,16 @@ func (o SetOp) handle(refs map[string]Actioner, g *graph.Graph) {
 
 }
 
-// func assess(refs map[string]*RefLink) {
-// 	for _, ref := range refs {
-// 		if ref.Change == state.Stable {
-// 			ref.Change = state.Remove
-// 			continue
-// 		}
-// 		for _, file := range ref.Files {
-// 			if file.Change() == state.Stable {
-// 				file.Change(state.Remove)
-// 			}
-// 		}
-// 	}
-// }
+func assess(refs map[string]Actioner) {
+	for _, ref := range refs {
+		if ref.State() == state.Stable {
+			ref.RemoveState()
+		}
+	}
+}
 
 func propagate(refs map[string]Actioner, g *graph.Graph) {
+
 	for node := range g.StartNodes() {
 		update := false
 		g.SetRun(func(node string) error {
@@ -97,13 +93,14 @@ func propagateFrom(node string, refs map[string]Actioner, g *graph.Graph) {
 	}, node)
 }
 
-func finish(refs map[string]Actioner) {
-	for _, ref := range refs {
-		// 		if ref.Change == state.Remove {
-		// 			fmt.Println("removing", src, "from refmap")
-		// 			delete(refs, src)
-		// 			continue
-		// 		}
+func finish(refs map[string]Actioner, g *graph.Graph) {
+	for key, ref := range refs {
+		if ref.State() == state.Remove {
+			fmt.Println("removing", key, "from refmap")
+			delete(refs, key)
+			g.Remove(key)
+			continue
+		}
 
 		ref.ClearState()
 	}
@@ -146,11 +143,11 @@ func (r Store) Propagate() {
 	<-setter.Err
 }
 
-// func (r RefMap) Assess() {
-// 	setter := &SetOp{
-// 		Key: "assess",
-// 		Err: make(chan error),
-// 	}
-// 	r.Sets <- setter
-// 	<-setter.Err
-// }
+func (r Store) Assess() {
+	setter := &SetOp{
+		Key: "assess",
+		Err: make(chan error),
+	}
+	r.Sets <- setter
+	<-setter.Err
+}

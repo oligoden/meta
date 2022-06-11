@@ -42,6 +42,9 @@ func TestHash(t *testing.T) {
 
 	d.FlagState()
 	assert.Equal(state.Updated, d.State())
+
+	d.RemoveState()
+	assert.Equal(state.Remove, d.State())
 }
 
 type testEntity struct {

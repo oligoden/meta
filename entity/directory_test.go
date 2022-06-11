@@ -1177,9 +1177,15 @@ type refMapStub struct {
 	maps  map[string]map[string]bool
 }
 
+func (rm refMapStub) Nodes(props ...string) []refmap.Actioner {
+	return []refmap.Actioner{}
+}
+
 func (rm refMapStub) AddRef(ctx context.Context, d string, f refmap.Actioner) {
 	rm.nodes[d] = f
 }
+
+func (rm refMapStub) RenameRef(ctx context.Context, k, v string) {}
 
 func (rm refMapStub) MapRef(ctx context.Context, a, b string, o ...uint) error {
 	if rm.maps[a] == nil {

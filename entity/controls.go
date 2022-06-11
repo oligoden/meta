@@ -10,6 +10,15 @@ type Controls struct {
 	Mappings  []*Mapping `json:"mappings"`
 }
 
+func NewControls() Controls {
+	return Controls{
+		Behaviour: &Behaviour{
+			Filters: map[string]map[string]string{},
+		},
+		Mappings: []*Mapping{},
+	}
+}
+
 type Mapping struct {
 	Start      Regexp `json:"start"`
 	End        Regexp `json:"end"`

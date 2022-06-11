@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/oligoden/meta/entity"
+	"github.com/oligoden/meta/entity/state"
 	"github.com/oligoden/meta/refmap"
 	"github.com/stretchr/testify/assert"
 )
@@ -84,6 +85,202 @@ func TestProjectProcessExt(t *testing.T) {
 	assert.Equal(t, "prj:abc", e.Identifier())
 	assert.NotEmpty(t, e.Hash())
 	assert.Equal(t, "development", e.Environment)
+}
+
+func TestProjectNameChange(t *testing.T) {
+	assert := assert.New(t)
+	f := bytes.NewBufferString(`{}`)
+
+	e := entity.NewProject()
+	err := e.Load(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, refmap.ContextKey("source"), "testing")
+	ctx = context.WithValue(ctx, refmap.ContextKey("destination"), "testing/out")
+	ctx = context.WithValue(ctx, refmap.ContextKey("verbose"), 3)
+
+	rm := refmap.Start()
+	err = e.Process(&entity.ProjectBranch{}, rm, ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = rm.Evaluate()
+	if err != nil {
+		t.Fatal(err)
+	}
+	rm.Assess()
+	rm.Finish()
+
+	assert.Equal(1, len(rm.Nodes()))
+
+	// testing reprocessing
+	f = bytes.NewBufferString(`{"name": "abc"}`)
+
+	err = e.Load(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = e.Process(&entity.ProjectBranch{}, rm, ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = rm.Evaluate()
+	if err != nil {
+		t.Fatal(err)
+	}
+	rm.Assess()
+	rm.Finish()
+
+	assert.Equal(1, len(rm.Nodes()))
+	assert.Equal("prj:abc", e.Identifier())
+
+	f = bytes.NewBufferString(`{"name": "def"}`)
+
+	err = e.Load(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = e.Process(&entity.ProjectBranch{}, rm, ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = rm.Evaluate()
+	if err != nil {
+		t.Fatal(err)
+	}
+	rm.Assess()
+	rm.Finish()
+
+	assert.Equal(1, len(rm.Nodes()))
+	assert.Equal("prj:def", e.Identifier())
+
+	f = bytes.NewBufferString(`{"name": ""}`)
+
+	err = e.Load(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = e.Process(&entity.ProjectBranch{}, rm, ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = rm.Evaluate()
+	if err != nil {
+		t.Fatal(err)
+	}
+	rm.Assess()
+	rm.Finish()
+
+	assert.Equal(1, len(rm.Nodes()))
+	assert.Equal("prj:", e.Identifier())
+
+	f = bytes.NewBufferString(`{"name": ""}`)
+
+	err = e.Load(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = e.Process(&entity.ProjectBranch{}, rm, ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = rm.Evaluate()
+	if err != nil {
+		t.Fatal(err)
+	}
+	rm.Assess()
+	rm.Finish()
+
+	assert.Equal(1, len(rm.Nodes()))
+	assert.Equal("prj:", e.Identifier())
+}
+
+func TestProjectReload(t *testing.T) {
+	assert := assert.New(t)
+	f := bytes.NewBufferString(`{
+		"directories": {
+			"a": {
+				"files": {
+					"b":{}
+				}
+			}
+		}
+	}`)
+
+	e := entity.NewProject()
+	err := e.Load(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, refmap.ContextKey("source"), "testing")
+	ctx = context.WithValue(ctx, refmap.ContextKey("destination"), "testing/out")
+	ctx = context.WithValue(ctx, refmap.ContextKey("verbose"), 3)
+
+	rm := refmap.Start()
+	err = e.Process(&entity.ProjectBranch{}, rm, ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = rm.Evaluate()
+	if err != nil {
+		t.Fatal(err)
+	}
+	rm.Assess()
+	rm.Finish()
+
+	assert.Equal(3, len(rm.Nodes()))
+	assert.Equal(state.Stable, e.Directories["a"].State())
+	assert.Equal(state.Stable, e.Directories["a"].Files["b"].State())
+	hash := e.Directories["a"].Hash()
+
+	// testing reprocessing
+	f = bytes.NewBufferString(`{
+		"directories": {
+			"a": {
+				"files": {
+					"b":{}
+				}
+			}
+		}
+	}`)
+
+	err = e.Load(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = e.Process(&entity.ProjectBranch{}, rm, ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(hash, e.Directories["a"].Hash())
+	assert.Equal(state.Checked, e.Directories["a"].State())
+	assert.Equal(state.Checked, e.Directories["a"].Files["b"].State())
+
+	err = rm.Evaluate()
+	if err != nil {
+		t.Fatal(err)
+	}
+	rm.Assess()
+	rm.Finish()
+
+	assert.Equal(3, len(rm.Nodes()))
 }
 
 func TestProjectPerform(t *testing.T) {

@@ -18,9 +18,20 @@ type Detect struct {
 	state uint8
 }
 
-func New() *Detect {
-	return &Detect{
-		state: Added,
+func New(hs ...string) *Detect {
+	h := ""
+	if len(hs) > 0 {
+		h = hs[0]
+	}
+
+	if h == "" {
+		return &Detect{
+			state: Added,
+		}
+	} else {
+		return &Detect{
+			hash: h,
+		}
 	}
 }
 
@@ -28,8 +39,14 @@ func (cd Detect) Hash() string {
 	return cd.hash
 }
 
-func (cd *Detect) ProcessState(e string) error {
-	data := []byte(e)
+func (cd *Detect) ProcessState(s string) error {
+	if cd.state != Stable {
+		if cd.state != Added || cd.hash != "" {
+			return nil
+		}
+	}
+
+	data := []byte(s)
 	h := sha1.New()
 	_, err := h.Write(data)
 	if err != nil {
@@ -61,4 +78,8 @@ func (cd *Detect) ClearState() {
 
 func (cd *Detect) FlagState() {
 	cd.state = Updated
+}
+
+func (cd *Detect) RemoveState() {
+	cd.state = Remove
 }

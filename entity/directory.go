@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/oligoden/meta/entity/state"
 	"github.com/oligoden/meta/refmap"
 )
 
@@ -68,7 +69,19 @@ func (e *Directory) Process(bb BranchBuilder, rm refmap.Mutator, ctx context.Con
 		}
 	}
 
-	err := e.Basic.Process(bb, rm, ctx)
+	hash := ""
+	nodes := rm.Nodes("", e.Identifier())
+	if len(nodes) > 0 {
+		hash = nodes[0].Hash()
+	}
+	e.Detect = state.New(hash)
+
+	err := e.ProcessState()
+	if err != nil {
+		return err
+	}
+
+	err = e.Basic.Process(bb, rm, ctx)
 	if err != nil {
 		return err
 	}
@@ -86,14 +99,6 @@ func path(path, modify string) string {
 	return filepath.Join(path, modify)
 }
 
-// func updatePaths(d *Directory, p string) {
-// 	for i, file := range d.Files {
-// 		for j, t := range file.Templates {
-// 			d.Files[i].Templates[j] = filepath.Join(p, t)
-// 		}
-// 	}
-
-// 	for k := range d.Directories {
-// 		updatePaths(d.Directories[k], p)
-// 	}
-// }
+func (e *Directory) ProcessState() error {
+	return e.Basic.ProcessState(e.SrcOverride + e.DstOverride)
+}

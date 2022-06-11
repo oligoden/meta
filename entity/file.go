@@ -69,6 +69,13 @@ func (e *File) Process(bb BranchBuilder, rm refmap.Mutator, ctx context.Context)
 		}
 	}
 
+	hash := ""
+	nodes := rm.Nodes("", e.Identifier())
+	if len(nodes) > 0 {
+		hash = nodes[0].Hash()
+	}
+	e.Detect = state.New(hash)
+
 	err := e.ProcessState()
 	if err != nil {
 		return err
@@ -112,7 +119,7 @@ func (e *File) Process(bb BranchBuilder, rm refmap.Mutator, ctx context.Context)
 	rm.AddRef(ctx, "file:"+e.Source, e)
 	err = rm.MapRef(ctx, e.Parent.Identifier(), "file:"+e.Source)
 	if err != nil {
-		return err
+		return fmt.Errorf("mapping nodes, %w", err)
 	}
 
 	return nil
@@ -158,9 +165,19 @@ func (file *File) Perform(rm refmap.Grapher, ctx context.Context) error {
 
 	_, err := os.Stat(dstFile)
 	if err == nil {
-		// 	if !ctx.Value(ContextKey("force")).(bool) {
-		// 		return nil
-		// 	}
+		if nd := rm.Nodes("", file.Identifier()); len(nd) > 0 {
+			if nd[0].State() == state.Remove {
+				if verboseValue >= 3 {
+					fmt.Println(dstFile, "set for removal, deleting")
+				}
+
+				err := os.Remove(dstFile)
+				if err != nil {
+					fmt.Println("error deleting file", dstFile)
+				}
+				return nil
+			}
+		}
 	} else if os.IsNotExist(err) {
 		os.MkdirAll(dstDirectory, os.ModePerm)
 	} else {
@@ -296,9 +313,5 @@ func commentFilter(r, w *bytes.Buffer) error {
 }
 
 func (e File) ProcessState() error {
-	tmp := e
-	tmp.Parent = nil
-	tmp.Branch = nil
-	tmp.Detect = nil
-	return e.Detect.ProcessState(fmt.Sprintf("%+v", tmp))
+	return e.Detect.ProcessState("")
 }

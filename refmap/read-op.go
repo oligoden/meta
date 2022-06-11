@@ -7,7 +7,7 @@ import (
 	"github.com/oligoden/meta/entity/state"
 )
 
-type nodesOp struct {
+type readOp struct {
 	filter    string
 	selection string
 	node      string
@@ -15,23 +15,27 @@ type nodesOp struct {
 	Refs      chan Actioner
 }
 
-func (o nodesOp) topological(refs map[string]Actioner, g *graph.Graph) {
+func (o readOp) topological(refs map[string]Actioner, g *graph.Graph) {
 	// fmt.Printf("\n\n%+v\n\n", g)
 	// fmt.Printf("\n\n%+v\n\n", g.StartNodes())
 
 	g.CompileRun(func(ref string) error {
-		if !strings.HasPrefix(ref, o.filter) {
+		if o.filter != "" && !strings.HasPrefix(ref, o.filter) {
 			return nil
 		}
-		if refs[ref].State() == state.Updated || refs[ref].State() == state.Added {
+		if o.selection == "changed" &&
+			(refs[ref].State() == state.Updated ||
+				refs[ref].State() == state.Added) {
 			o.Refs <- refs[ref]
+			return nil
 		}
+		o.Refs <- refs[ref]
 		return nil
 	})
 	close(o.Refs)
 }
 
-func (o nodesOp) parents(node string, refs map[string]Actioner, g *graph.Graph) {
+func (o readOp) parents(node string, refs map[string]Actioner, g *graph.Graph) {
 	g.ReverseRun(func(ref string) error {
 		if !strings.HasPrefix(ref, o.filter) {
 			return nil
@@ -42,14 +46,40 @@ func (o nodesOp) parents(node string, refs map[string]Actioner, g *graph.Graph) 
 	close(o.nodes)
 }
 
-// ChangedRefs returns a slice of DestRefs that has changed.
+// Nodes returns a slice of the nodes.
+func (r Store) Nodes(props ...string) []Actioner {
+	selection := ""
+	filter := ""
+
+	if len(props) > 0 {
+		selection = props[0]
+	}
+	if len(props) > 1 {
+		filter = props[1]
+	}
+
+	refs := []Actioner{}
+	changed := &readOp{
+		filter:    filter,
+		selection: selection,
+		Refs:      make(chan Actioner),
+	}
+	r.Read <- changed
+
+	for ref := range changed.Refs {
+		refs = append(refs, ref)
+	}
+	return refs
+}
+
+// ChangedRefs returns a slice of the nodes that has changed.
 func (r Store) ChangedRefs() []Actioner {
 	refs := []Actioner{}
-	changed := &nodesOp{
+	changed := &readOp{
 		selection: "changed",
 		Refs:      make(chan Actioner),
 	}
-	r.Nodes <- changed
+	r.Read <- changed
 
 	for ref := range changed.Refs {
 		refs = append(refs, ref)
@@ -60,12 +90,12 @@ func (r Store) ChangedRefs() []Actioner {
 // ChangedFiles returns a slice of files that has changed.
 func (r Store) ChangedFiles() []Actioner {
 	refs := []Actioner{}
-	changed := &nodesOp{
+	changed := &readOp{
 		filter:    "file",
 		selection: "changed",
 		Refs:      make(chan Actioner),
 	}
-	r.Nodes <- changed
+	r.Read <- changed
 
 	for ref := range changed.Refs {
 		refs = append(refs, ref)
@@ -76,12 +106,12 @@ func (r Store) ChangedFiles() []Actioner {
 // ChangedExecs returns a slice of execs that has changed.
 func (r Store) ChangedExecs() []Actioner {
 	refs := []Actioner{}
-	changed := &nodesOp{
+	changed := &readOp{
 		filter:    "exec",
 		selection: "changed",
 		Refs:      make(chan Actioner),
 	}
-	r.Nodes <- changed
+	r.Read <- changed
 
 	for ref := range changed.Refs {
 		refs = append(refs, ref)
@@ -91,13 +121,13 @@ func (r Store) ChangedExecs() []Actioner {
 
 // ParentFiles returns a slice of all the parent files.
 func (r Store) ParentFiles(file string) []string {
-	parents := &nodesOp{
+	parents := &readOp{
 		filter:    "file",
 		selection: "parents",
 		node:      file,
 		nodes:     make(chan string),
 	}
-	r.Nodes <- parents
+	r.Read <- parents
 
 	nodes := []string{}
 	for node := range parents.nodes {
@@ -108,12 +138,12 @@ func (r Store) ParentFiles(file string) []string {
 
 // ParentRefs returns a slice of all the parent refs.
 func (r Store) ParentRefs(file string) []string {
-	parents := &nodesOp{
+	parents := &readOp{
 		selection: "parents",
 		node:      file,
 		nodes:     make(chan string),
 	}
-	r.Nodes <- parents
+	r.Read <- parents
 
 	nodes := []string{}
 	for node := range parents.nodes {

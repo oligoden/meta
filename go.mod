@@ -6,7 +6,7 @@ require (
 	github.com/fsnotify/fsnotify v1.5.4
 	github.com/jinzhu/inflection v1.0.0
 	github.com/mitchellh/go-homedir v1.1.0
-	github.com/oligoden/math-graph v0.3.2
+	github.com/oligoden/math-graph v0.4.2
 	github.com/spf13/cobra v1.4.0
 	github.com/spf13/viper v1.11.0
 	github.com/stretchr/testify v1.7.1

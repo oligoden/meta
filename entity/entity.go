@@ -172,7 +172,6 @@ func (e *Basic) Process(bb BranchBuilder, rm refmap.Mutator, ctx context.Context
 	for name := range e.Files {
 		e.Files[name].Name = name
 		e.Files[name].Parent = e.This
-		e.Files[name].Detect = state.New()
 		err := e.Files[name].Process(bb, rm, ctx)
 		if err != nil {
 			return err
@@ -182,7 +181,6 @@ func (e *Basic) Process(bb BranchBuilder, rm refmap.Mutator, ctx context.Context
 	for name := range e.Directories {
 		e.Directories[name].Name = name
 		e.Directories[name].Parent = e.This
-		e.Directories[name].Detect = state.New()
 		err := e.Directories[name].Process(bb, rm, ctx)
 		if err != nil {
 			return err
@@ -228,14 +226,9 @@ func (e *Basic) Process(bb BranchBuilder, rm refmap.Mutator, ctx context.Context
 	return nil
 }
 
-func (e *Basic) ProcessState() error {
-	tmp := *e
-	tmp.Directories = map[string]*Directory{}
-	tmp.Files = map[string]*File{}
-	tmp.Execs = map[string]*CLE{}
-	tmp.This = nil
-	tmp.Parent = nil
-	tmp.posibleMappings = map[string]Mapping{}
-	tmp.Detect = nil
-	return e.Detect.ProcessState(fmt.Sprintf("%+v", tmp))
+func (e *Basic) ProcessState(s ...string) error {
+	if len(s) > 0 {
+		return e.Detect.ProcessState(s[0])
+	}
+	return e.Detect.ProcessState("")
 }

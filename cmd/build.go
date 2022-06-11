@@ -130,6 +130,7 @@ See https://oligoden.com/meta for more information.`,
 				fmt.Println(ref.Output())
 			}
 		}
+		rm.Assess()
 		rm.Finish()
 
 		fmt.Println("done")

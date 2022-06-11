@@ -1,17 +1,20 @@
 package entity
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 
 	"github.com/oligoden/meta/entity/state"
+	"github.com/oligoden/meta/refmap"
 )
 
 func NewProject() *Project {
 	e := &Project{}
 	e.This = e
+	e.Controls = NewControls()
 	e.Detect = state.New()
 	return e
 }
@@ -22,6 +25,7 @@ type Project struct {
 	Repository   Repository `json:"repo"`
 	WorkLocation string     `json:"work-location"`
 	DestLocation string     `json:"dest-location"`
+	oldName      string
 	Basic
 }
 
@@ -60,5 +64,29 @@ func (e *Project) LoadFile(fn string) error {
 	}
 
 	fmt.Println("loaded config file")
+	return nil
+}
+
+func (e *Project) Process(bb BranchBuilder, rm refmap.Mutator, ctx context.Context) error {
+	// Check if name changed
+	if e.oldName != "" && e.oldName != e.Name {
+		if e.oldName == "-" {
+			if e.Name != "" {
+				rm.RenameRef(ctx, "prj:", e.Identifier())
+			}
+		} else {
+			rm.RenameRef(ctx, "prj:"+e.oldName, e.Identifier())
+		}
+	}
+	e.oldName = e.Name
+	if e.oldName == "" {
+		e.oldName = "-"
+	}
+
+	err := e.Basic.Process(bb, rm, ctx)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }

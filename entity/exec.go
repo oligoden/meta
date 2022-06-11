@@ -55,6 +55,13 @@ func (e CLE) Derived() (string, string) {
 }
 
 func (e *CLE) Process(rm refmap.Mutator, ctx context.Context) error {
+	hash := ""
+	nodes := rm.Nodes("", e.Identifier())
+	if len(nodes) > 0 {
+		hash = nodes[0].Hash()
+	}
+	e.Detect = state.New(hash)
+
 	err := e.ProcessState()
 	if err != nil {
 		return err
@@ -118,8 +125,5 @@ func (e *CLE) Perform(rm refmap.Grapher, ctx context.Context) error {
 }
 
 func (e *CLE) ProcessState() error {
-	tmp := *e
-	tmp.Parent = nil
-	tmp.Detect = nil
-	return e.Detect.ProcessState(fmt.Sprintf("%+v", tmp))
+	return e.Detect.ProcessState("")
 }

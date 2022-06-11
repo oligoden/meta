@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
@@ -130,6 +131,7 @@ See https://oligoden.com/meta for more information.`,
 			fmt.Println("error evaluating graph", err)
 			return
 		}
+		rm.Assess()
 		rm.Output()
 
 		fmt.Println("building project...")
@@ -153,7 +155,7 @@ See https://oligoden.com/meta for more information.`,
 		fmt.Println("READY")
 
 		stopSignal := make(chan os.Signal, 1)
-		signal.Notify(stopSignal, os.Interrupt, os.Kill)
+		signal.Notify(stopSignal, os.Interrupt, syscall.SIGTERM)
 		ctx = context.WithValue(ctx, refmap.ContextKey("force"), true)
 		done := make(chan bool)
 
@@ -237,9 +239,10 @@ See https://oligoden.com/meta for more information.`,
 							break
 						}
 						rm.Evaluate()
-						rm.Output()
 					}
 					rm.Propagate()
+					rm.Assess()
+					rm.Output()
 
 					fmt.Println("rebuilding")
 					for _, ref := range rm.ChangedRefs() {
@@ -247,7 +250,6 @@ See https://oligoden.com/meta for more information.`,
 						if err != nil {
 							fmt.Println("error performing actions on", ref.Identifier(), err)
 							fmt.Println(ref.Output())
-							rm.Finish()
 							metafileChange = false
 							fileChange = false
 							break
@@ -258,11 +260,9 @@ See https://oligoden.com/meta for more information.`,
 						}
 					}
 
-					if metafileChange || fileChange {
-						rm.Finish()
-						metafileChange = false
-						fileChange = false
-					}
+					rm.Finish()
+					metafileChange = false
+					fileChange = false
 				}
 			}
 			done <- true

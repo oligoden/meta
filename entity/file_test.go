@@ -18,20 +18,43 @@ import (
 func TestFileProcess(t *testing.T) {
 	assert := assert.New(t)
 
-	eFile := &entity.File{}
-
-	e := &entity.Basic{
+	eProject := entity.NewProject()
+	e := &entity.File{
 		Vars:   map[string]string{"test": "test"},
-		Files:  map[string]*entity.File{"a.ext": eFile},
 		Detect: state.New(),
+		Parent: eProject,
 	}
 
 	rm := refmap.Start()
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, refmap.ContextKey("verbose"), 0)
-	if assert.NoError(e.Process(&entity.Branch{}, rm, ctx)) {
-		assert.Equal("test", eFile.Vars["test"])
-	}
+	rm.AddRef(ctx, eProject.Identifier(), eProject)
+
+	err := e.Process(&entity.Branch{}, rm, ctx)
+	assert.NoError(err)
+
+	err = rm.Evaluate()
+	assert.NoError(err)
+	assert.Equal(state.Added, e.State())
+
+	rm.Assess()
+	rm.Finish()
+	assert.Equal(state.Stable, e.State())
+	hash := e.Hash()
+
+	assert.Equal("test", e.Vars["test"])
+
+	err = e.Process(&entity.Branch{}, rm, ctx)
+	assert.NoError(err)
+
+	err = rm.Evaluate()
+	assert.NoError(err)
+	assert.Equal(state.Checked, e.State())
+
+	rm.Assess()
+	rm.Finish()
+	assert.Equal(state.Stable, e.State())
+	assert.Equal(hash, e.Hash())
 }
 
 func TestFileProcessExt(t *testing.T) {

@@ -10,6 +10,8 @@ import (
 )
 
 func TestNormalAdding(t *testing.T) {
+	assert := assert.New(t)
+
 	rm := refmap.Start()
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, refmap.ContextKey("verbose"), 0)
@@ -30,7 +32,6 @@ func TestNormalAdding(t *testing.T) {
 	rm.Evaluate()
 	rm.Finish()
 
-	assert := assert.New(t)
 	assert.Equal(state.Stable, t1.State())
 	assert.Equal(state.Stable, t2.State())
 
@@ -58,6 +59,35 @@ func TestAddingUpdatedRef(t *testing.T) {
 	rm.Evaluate()
 
 	assert.Equal(t, hash, rm.ChangedRefs()[0].Hash())
+}
+
+func TestRemoving(t *testing.T) {
+	assert := assert.New(t)
+
+	rm := refmap.Start()
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, refmap.ContextKey("verbose"), 0)
+
+	t1 := newTestRef("x")
+	t1.ProcessState("x")
+	rm.AddRef(ctx, "a", t1)
+
+	t2 := newTestRef("y")
+	t2.ProcessState("y")
+	rm.AddRef(ctx, "b", t2)
+
+	rm.Evaluate()
+	rm.Finish()
+
+	assert.Len(rm.Nodes(), 2)
+
+	t1.ProcessState("x")
+	rm.Assess()
+	assert.Equal(state.Checked, t1.State())
+	assert.Equal(state.Remove, t2.State())
+	rm.Finish()
+
+	assert.Len(rm.Nodes(), 1)
 }
 
 type testRef struct {
