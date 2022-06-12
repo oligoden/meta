@@ -78,6 +78,7 @@ func (e *Project) Process(bb BranchBuilder, rm refmap.Mutator, ctx context.Conte
 			rm.RenameRef(ctx, "prj:"+e.oldName, e.Identifier())
 		}
 	}
+
 	e.oldName = e.Name
 	if e.oldName == "" {
 		e.oldName = "-"

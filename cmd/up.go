@@ -232,14 +232,19 @@ See https://oligoden.com/meta for more information.`,
 							f.Close()
 						}
 
-						err = e.Process(&entity.ProjectBranch{}, rm, ctx)
-						if err != nil {
-							fmt.Println("error processing project", err)
-							run = false
-							break
-						}
+					}
+
+					err = e.Process(&entity.ProjectBranch{}, rm, ctx)
+					if err != nil {
+						fmt.Println("error processing project", err)
+						run = false
+						break
+					}
+
+					if metafileChange {
 						rm.Evaluate()
 					}
+
 					rm.Propagate()
 					rm.Assess()
 					rm.Output()
