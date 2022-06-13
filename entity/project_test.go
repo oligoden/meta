@@ -31,8 +31,8 @@ func TestProjectLoadFile(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, refmap.ContextKey("source"), "testing")
-	ctx = context.WithValue(ctx, refmap.ContextKey("destination"), "testing/out")
+	ctx = context.WithValue(ctx, refmap.ContextKey("orig"), "testing")
+	ctx = context.WithValue(ctx, refmap.ContextKey("dest"), "testing/out")
 	ctx = context.WithValue(ctx, refmap.ContextKey("verbose"), 0)
 
 	rm := refmap.Start()
@@ -67,8 +67,8 @@ func TestProjectProcessExt(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, refmap.ContextKey("source"), "testing")
-	ctx = context.WithValue(ctx, refmap.ContextKey("destination"), "testing/out")
+	ctx = context.WithValue(ctx, refmap.ContextKey("orig"), "testing")
+	ctx = context.WithValue(ctx, refmap.ContextKey("dest"), "testing/out")
 	ctx = context.WithValue(ctx, refmap.ContextKey("verbose"), 0)
 
 	rm := refmap.Start()
@@ -98,8 +98,8 @@ func TestProjectNameChange(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, refmap.ContextKey("source"), "testing")
-	ctx = context.WithValue(ctx, refmap.ContextKey("destination"), "testing/out")
+	ctx = context.WithValue(ctx, refmap.ContextKey("orig"), "testing")
+	ctx = context.WithValue(ctx, refmap.ContextKey("dest"), "testing/out")
 	ctx = context.WithValue(ctx, refmap.ContextKey("verbose"), 3)
 
 	rm := refmap.Start()
@@ -210,7 +210,7 @@ func TestProjectNameChange(t *testing.T) {
 func TestProjectReload(t *testing.T) {
 	assert := assert.New(t)
 	f := bytes.NewBufferString(`{
-		"directories": {
+		"dirs": {
 			"a": {
 				"files": {
 					"b":{}
@@ -226,8 +226,8 @@ func TestProjectReload(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, refmap.ContextKey("source"), "testing")
-	ctx = context.WithValue(ctx, refmap.ContextKey("destination"), "testing/out")
+	ctx = context.WithValue(ctx, refmap.ContextKey("orig"), "testing")
+	ctx = context.WithValue(ctx, refmap.ContextKey("dest"), "testing/out")
 	ctx = context.WithValue(ctx, refmap.ContextKey("verbose"), 3)
 
 	rm := refmap.Start()
@@ -326,22 +326,16 @@ func TestProjectPerform(t *testing.T) {
 
 	f := bytes.NewBufferString(`{
 		"name": "abc",
-		"controls": {
-			"behaviour": {
-				"options": "output"
-			},
-			"mappings": [
-				{"start": "file:a/aa.ext", "end": "file:a/ab.ext"},
-				{"start": "file:a/aa.ext", "end": "file:b/ba.ext"}
-			]
-		},
-		"directories": {
+		"options": "output",
+		"mappings": [
+			{"start": "file:a/aa.ext", "end": "file:a/ab.ext"},
+			{"start": "file:a/aa.ext", "end": "file:b/ba.ext"}
+		],
+		"dirs": {
 			"a": {
-				"controls": {
-					"mappings": [
-						{"start": "file:a/aa.ext", "end": "file:a/ac.ext"}
-					]
-				},
+				"mappings": [
+					{"start": "file:a/aa.ext", "end": "file:a/ac.ext"}
+				],
 				"files": {
 					"aa.ext": {},
 					"ab.ext": {},
@@ -368,8 +362,8 @@ func TestProjectPerform(t *testing.T) {
 	rm := refmap.Start()
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, refmap.ContextKey("source"), "testing")
-	ctx = context.WithValue(ctx, refmap.ContextKey("destination"), "testing/out")
+	ctx = context.WithValue(ctx, refmap.ContextKey("orig"), "testing")
+	ctx = context.WithValue(ctx, refmap.ContextKey("dest"), "testing/out")
 	ctx = context.WithValue(ctx, refmap.ContextKey("verbose"), 0)
 
 	err = e.Process(&entity.Branch{}, rm, ctx)
@@ -441,11 +435,7 @@ func TestTemplateMethodsOnProject(t *testing.T) {
 	eFile := &entity.File{
 		Name:   "a.ext",
 		Source: "a.ext",
-		Controls: entity.Controls{
-			Behaviour: &entity.Behaviour{
-				Options: "output",
-			},
-		},
+		Opts:   "output",
 		Branch: &entity.ProjectBranch{},
 	}
 
@@ -460,8 +450,8 @@ func TestTemplateMethodsOnProject(t *testing.T) {
 	eFile.Parent = eProject
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, refmap.ContextKey("source"), "testing")
-	ctx = context.WithValue(ctx, refmap.ContextKey("destination"), "testing/out")
+	ctx = context.WithValue(ctx, refmap.ContextKey("orig"), "testing")
+	ctx = context.WithValue(ctx, refmap.ContextKey("dest"), "testing/out")
 	ctx = context.WithValue(ctx, refmap.ContextKey("verbose"), 3)
 
 	err := eFile.Perform(nil, ctx)

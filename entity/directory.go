@@ -2,7 +2,6 @@ package entity
 
 import (
 	"context"
-	"log"
 	"path/filepath"
 	"strings"
 
@@ -11,8 +10,8 @@ import (
 )
 
 type Directory struct {
-	SrcOverride string `json:"src-ovr"`
-	DstOverride string `json:"dst-ovr"`
+	OrigOverride string `json:"orig"`
+	DestOverride string `json:"dest"`
 	// Import      *configImport `json:"import"`
 	Basic
 }
@@ -25,7 +24,7 @@ func (d Directory) Identifier() string {
 }
 
 func (d Directory) ContainsFilter(filter string) bool {
-	if _, has := d.Controls.Behaviour.Filters[filter]; has {
+	if _, has := d.Flts[filter]; has {
 		return true
 	}
 	return false
@@ -40,12 +39,7 @@ func (d Directory) Output() string {
 }
 
 func (d Directory) BehaviourOptionsContain(o string) bool {
-	if d.Controls.Behaviour == nil {
-		log.Println("behaviour not set for", d.Name)
-		return false
-	}
-
-	return strings.Contains(d.Controls.Behaviour.Options, o)
+	return strings.Contains(d.Opts, o)
 }
 
 func (e *Directory) Process(bb BranchBuilder, rm refmap.Mutator, ctx context.Context) error {
@@ -55,8 +49,8 @@ func (e *Directory) Process(bb BranchBuilder, rm refmap.Mutator, ctx context.Con
 	e.DstDerived = filepath.Join(DstDerived, e.Name)
 
 	// verboseValue := ctx.Value(ContextKey("verbose")).(int)
-	e.SrcDerived = path(e.SrcDerived, e.SrcOverride)
-	e.DstDerived = path(e.DstDerived, e.DstOverride)
+	e.SrcDerived = path(e.SrcDerived, e.OrigOverride)
+	e.DstDerived = path(e.DstDerived, e.DestOverride)
 
 	e.This = e
 
@@ -100,5 +94,5 @@ func path(path, modify string) string {
 }
 
 func (e *Directory) ProcessState() error {
-	return e.Basic.ProcessState(e.SrcOverride + e.DstOverride)
+	return e.Basic.ProcessState(e.OrigOverride + e.DestOverride)
 }

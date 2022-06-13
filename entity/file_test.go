@@ -60,17 +60,13 @@ func TestFileProcess(t *testing.T) {
 func TestFileProcessExt(t *testing.T) {
 	f := bytes.NewBufferString(`{
 		"name": "abc",
-		"controls": {
-			"behaviour": {"options":"b,c"},
-			"mappings": [
-				{"start": "file:a.ext", "end": "file:b.ext"}
-			]
-		},
+		"mappings": [
+			{"start": "file:a.ext", "end": "file:b.ext"}
+		],
+		"options":"b,c",
 		"files": {
 			"a.ext": {
-				"controls": {
-					"behaviour": {"options":"a,-c"}
-				}
+				"options":"a,-c"
 			},
 			"b.ext": {}
 		}
@@ -85,8 +81,8 @@ func TestFileProcessExt(t *testing.T) {
 	rm := refmap.Start()
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, refmap.ContextKey("source"), "testing")
-	ctx = context.WithValue(ctx, refmap.ContextKey("destination"), "testing/out")
+	ctx = context.WithValue(ctx, refmap.ContextKey("orig"), "testing")
+	ctx = context.WithValue(ctx, refmap.ContextKey("dest"), "testing/out")
 	ctx = context.WithValue(ctx, refmap.ContextKey("verbose"), 0)
 
 	err = e.Process(&entity.Branch{}, rm, ctx)
@@ -121,7 +117,7 @@ func TestFileProcessExt(t *testing.T) {
 	}
 
 	exp = "a"
-	cnt := file.Controls.Behaviour.Options
+	cnt := file.Opts
 	if !strings.Contains(cnt, exp) {
 		t.Errorf(`expected "%s" in "%s"`, exp, cnt)
 	}
@@ -169,14 +165,10 @@ func TestFilePerform(t *testing.T) {
 
 	f := bytes.NewBufferString(`{
 		"name": "abc",
-		"controls": {
-			"behaviour": {
-				"options": "output"
-			},
-			"mappings": [
-				{"start": "file:a.ext", "end": "file:b.ext"}
-			]
-		},
+		"options": "output",
+		"mappings": [
+			{"start": "file:a.ext", "end": "file:b.ext"}
+		],
 		"files": {
 			"a.ext": {},
 			"b.ext": {}
@@ -192,8 +184,8 @@ func TestFilePerform(t *testing.T) {
 	rm := refmap.Start()
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, refmap.ContextKey("source"), "testing")
-	ctx = context.WithValue(ctx, refmap.ContextKey("destination"), "testing/out")
+	ctx = context.WithValue(ctx, refmap.ContextKey("orig"), "testing")
+	ctx = context.WithValue(ctx, refmap.ContextKey("dest"), "testing/out")
 	ctx = context.WithValue(ctx, refmap.ContextKey("verbose"), 0)
 
 	err = e.Process(&entity.Branch{}, rm, ctx)
@@ -253,11 +245,7 @@ func TestFilePerformCopy(t *testing.T) {
 
 	f := bytes.NewBufferString(`{
 		"name": "abc",
-		"controls": {
-			"behaviour": {
-				"options": "output,copy"
-			}
-		},
+		"options": "output,copy",
 		"files": {
 			"a.ext": {}
 		}
@@ -272,8 +260,8 @@ func TestFilePerformCopy(t *testing.T) {
 	rm := refmap.Start()
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, refmap.ContextKey("source"), "testing")
-	ctx = context.WithValue(ctx, refmap.ContextKey("destination"), "testing/out")
+	ctx = context.WithValue(ctx, refmap.ContextKey("orig"), "testing")
+	ctx = context.WithValue(ctx, refmap.ContextKey("dest"), "testing/out")
 	ctx = context.WithValue(ctx, refmap.ContextKey("verbose"), 0)
 
 	err = e.Process(&entity.Branch{}, rm, ctx)
@@ -320,12 +308,8 @@ func TestFilters(t *testing.T) {
 
 	f := bytes.NewBufferString(`{
 		"name": "abc",
-		"controls": {
-			"behaviour": {
-				"options": "output",
-				"filters": {"comment":{}}
-			}
-		},
+		"options": "output",
+		"filters": {"comment":{}},
 		"files": {
 			"a.ext": {}
 		}
@@ -340,8 +324,8 @@ func TestFilters(t *testing.T) {
 	rm := refmap.Start()
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, refmap.ContextKey("source"), "testing")
-	ctx = context.WithValue(ctx, refmap.ContextKey("destination"), "testing/out")
+	ctx = context.WithValue(ctx, refmap.ContextKey("orig"), "testing")
+	ctx = context.WithValue(ctx, refmap.ContextKey("dest"), "testing/out")
 	ctx = context.WithValue(ctx, refmap.ContextKey("verbose"), 0)
 
 	err = e.Process(&entity.Branch{}, rm, ctx)
@@ -390,17 +374,13 @@ func TestTemplateMethods(t *testing.T) {
 	e := &entity.File{
 		Name:   "a.ext",
 		Source: "a.ext",
-		Controls: entity.Controls{
-			Behaviour: &entity.Behaviour{
-				Options: "output",
-			},
-		},
+		Opts:   "output",
 		Branch: &entity.Branch{},
 	}
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, refmap.ContextKey("source"), "testing")
-	ctx = context.WithValue(ctx, refmap.ContextKey("destination"), "testing/out")
+	ctx = context.WithValue(ctx, refmap.ContextKey("orig"), "testing")
+	ctx = context.WithValue(ctx, refmap.ContextKey("dest"), "testing/out")
 	ctx = context.WithValue(ctx, refmap.ContextKey("verbose"), 3)
 
 	err := e.Perform(nil, ctx)

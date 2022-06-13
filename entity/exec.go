@@ -99,7 +99,7 @@ func (e *CLE) Process(rm refmap.Mutator, ctx context.Context) error {
 }
 
 func (e *CLE) Perform(rm refmap.Grapher, ctx context.Context) error {
-	RootSrcDir := ctx.Value(refmap.ContextKey("source")).(string)
+	RootSrcDir := ctx.Value(refmap.ContextKey("orig")).(string)
 
 	if e.Timeout == 0 {
 		e.Timeout = 500

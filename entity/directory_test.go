@@ -42,23 +42,19 @@ func TestDirProcess(t *testing.T) {
 func TestDirProcessExt(t *testing.T) {
 	f := bytes.NewBufferString(`{
 		"name": "abc",
-		"controls": {
-			"behaviour": {"options": "a"},
-			"mappings": [
-				{"start": "file:aa.ext", "end": "file:ac.ext"},
-				{"start": "file:aa.ext", "end": "file:b/ba.ext"},
-				{"start": "file:aa.ext", "end": "file:a.ext"}
-			]
-		},
-		"directories": {
+		"options": "a",
+		"mappings": [
+			{"start": "file:aa.ext", "end": "file:ac.ext"},
+			{"start": "file:aa.ext", "end": "file:b/ba.ext"},
+			{"start": "file:aa.ext", "end": "file:a.ext"}
+		],
+		"dirs": {
 			"a": {
-				"controls": {
-					"mappings": [
-						{"start": "file:aa.ext", "end": "file:ab.ext"}
-					]
-				},
-				"src-ovr": "/",
-				"dst-ovr": "aa",
+				"mappings": [
+					{"start": "file:aa.ext", "end": "file:ab.ext"}
+				],
+				"orig": "/",
+				"dest": "aa",
 				"files": {
 					"aa.ext": {},
 					"ab.ext": {},
@@ -85,8 +81,8 @@ func TestDirProcessExt(t *testing.T) {
 	rm := refmap.Start()
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, refmap.ContextKey("source"), "testing")
-	ctx = context.WithValue(ctx, refmap.ContextKey("destination"), "testing/out")
+	ctx = context.WithValue(ctx, refmap.ContextKey("orig"), "testing")
+	ctx = context.WithValue(ctx, refmap.ContextKey("dest"), "testing/out")
 	ctx = context.WithValue(ctx, refmap.ContextKey("verbose"), 0)
 
 	err = e.Process(&entity.Branch{}, rm, ctx)
@@ -207,29 +203,25 @@ func TestDirPerform(t *testing.T) {
 
 	f := bytes.NewBufferString(`{
 		"name": "abc",
-		"controls": {
-			"behaviour": {"options":"output"},
-			"mappings": [
-				{"start": "file:aa.ext", "end": "file:ac.ext"},
-				{"start": "file:aa.ext", "end": "file:b/ba.ext"},
-				{"start": "file:aa.ext", "end": "file:a.ext"}
-			]
-		},
-		"directories": {
+		"mappings": [
+			{"start": "file:aa.ext", "end": "file:ac.ext"},
+			{"start": "file:aa.ext", "end": "file:b/ba.ext"},
+			{"start": "file:aa.ext", "end": "file:a.ext"}
+		],
+		"options":"output",
+		"dirs": {
 			"a": {
-				"controls": {
-					"mappings": [
-						{"start": "file:aa.ext", "end": "file:ab.ext"},
-						{"start": "file:aa.ext", "end": "file:aa/aaa.ext"}
-					]
-				},
-				"src-ovr": "/",
+				"mappings": [
+					{"start": "file:aa.ext", "end": "file:ab.ext"},
+					{"start": "file:aa.ext", "end": "file:aa/aaa.ext"}
+				],
+				"orig": "/",
 				"files": {
 					"aa.ext": {},
 					"ab.ext": {},
 					"ac.ext": {}
 				},
-				"directories": {
+				"dirs": {
 					"aa": {
 						"files": {
 							"aaa.ext": {}
@@ -257,8 +249,8 @@ func TestDirPerform(t *testing.T) {
 	rm := refmap.Start()
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, refmap.ContextKey("source"), "testing")
-	ctx = context.WithValue(ctx, refmap.ContextKey("destination"), "testing/out")
+	ctx = context.WithValue(ctx, refmap.ContextKey("orig"), "testing")
+	ctx = context.WithValue(ctx, refmap.ContextKey("dest"), "testing/out")
 	ctx = context.WithValue(ctx, refmap.ContextKey("verbose"), 3)
 
 	err = e.Process(&entity.Branch{}, rm, ctx)
@@ -360,11 +352,11 @@ func TestSimpleDirStructure(t *testing.T) {
 	}`
 
 	testCases := []struct {
-		desc        string
-		srcOverride string
-		dstOverride string
-		srcExp      string
-		dstExp      string
+		desc         string
+		origOverride string
+		destOverride string
+		srcExp       string
+		dstExp       string
 	}{
 		{
 			desc:   "normal behaviour",
@@ -372,42 +364,42 @@ func TestSimpleDirStructure(t *testing.T) {
 			dstExp: "a",
 		},
 		{
-			desc:        "add to source path",
-			srcExp:      "a/b",
-			dstExp:      "a",
-			srcOverride: "b",
+			desc:         "add to source path",
+			srcExp:       "a/b",
+			dstExp:       "a",
+			origOverride: "b",
 		},
 		{
-			desc:        "destination stay in current dir",
-			srcExp:      "a",
-			dstExp:      ".",
-			dstOverride: ".",
+			desc:         "destination stay in current dir",
+			srcExp:       "a",
+			dstExp:       ".",
+			destOverride: ".",
 		},
 		{
-			desc:        "source goto dir in current dir",
-			srcExp:      "b",
-			dstExp:      "a",
-			srcOverride: "./b",
+			desc:         "source goto dir in current dir",
+			srcExp:       "b",
+			dstExp:       "a",
+			origOverride: "./b",
 		},
 		{
-			desc:        "destination goto root",
-			srcExp:      "a",
-			dstExp:      "",
-			dstOverride: "/",
+			desc:         "destination goto root",
+			srcExp:       "a",
+			dstExp:       "",
+			destOverride: "/",
 		},
 		{
-			desc:        "source goto dir in root",
-			srcExp:      "b",
-			dstExp:      "a",
-			srcOverride: "/b",
+			desc:         "source goto dir in root",
+			srcExp:       "b",
+			dstExp:       "a",
+			origOverride: "/b",
 		},
 	}
 	for _, tC := range testCases {
 		t.Run(tC.desc, func(t *testing.T) {
 			mc := dirTestConfigSetup(cfg, t)
 			dir := mc.Directories["a"]
-			dir.SrcOverride = tC.srcOverride
-			dir.DstOverride = tC.dstOverride
+			dir.OrigOverride = tC.origOverride
+			dir.DestOverride = tC.destOverride
 			ctx := context.Background()
 			dirTestProcess(mc, ctx, t)
 
@@ -447,23 +439,23 @@ func TestDeepDirStructure(t *testing.T) {
 	}`
 
 	testCases := []struct {
-		desc        string
-		srcOverride string
-		dstOverride string
-		srcExp      string
-		dstExp      string
+		desc         string
+		origOverride string
+		destOverride string
+		srcExp       string
+		dstExp       string
 	}{
 		{
-			desc:        "destination stay in current dir",
-			srcExp:      "a/aa",
-			dstExp:      "a",
-			dstOverride: ".",
+			desc:         "destination stay in current dir",
+			srcExp:       "a/aa",
+			dstExp:       "a",
+			destOverride: ".",
 		},
 		{
-			desc:        "source goto dir in current dir",
-			srcExp:      "a/bb",
-			dstExp:      "a/aa",
-			srcOverride: "./bb",
+			desc:         "source goto dir in current dir",
+			srcExp:       "a/bb",
+			dstExp:       "a/aa",
+			origOverride: "./bb",
 		},
 	}
 	for _, tC := range testCases {
@@ -471,8 +463,8 @@ func TestDeepDirStructure(t *testing.T) {
 			mc := dirTestConfigSetup(cfg, t)
 			dir := mc.Directories["a"]
 			dirAA := dir.Directories["aa"]
-			dirAA.SrcOverride = tC.srcOverride
-			dirAA.DstOverride = tC.dstOverride
+			dirAA.OrigOverride = tC.origOverride
+			dirAA.DestOverride = tC.destOverride
 			ctx := context.Background()
 			dirTestProcess(mc, ctx, t)
 
@@ -508,7 +500,7 @@ func TestDeepDirStructure(t *testing.T) {
 // 	dir.Name = "b"
 // 	dir.Parent = mc
 // 	ctx := context.Background()
-// 	ctx = context.WithValue(ctx, entity.ContextKey("source"), "testing/work")
+// 	ctx = context.WithValue(ctx, entity.ContextKey("orig"), "testing/work")
 // 	dirTestProcess(mc, ctx, t)
 
 // 	// dirA, ok := dir.Directories["ba"]
@@ -733,37 +725,20 @@ func TestDirFileBehaviourParams(t *testing.T) {
 			dirAA := dir.Directories["aa"]
 			fileAA := dir.Files["aa.ext"]
 
-			if dirAA.Controls.Behaviour == nil {
-				t.Fatal("expected behaviour")
-			}
-
 			exp := tC.dirBhOptions
-			got := dirAA.Controls.Behaviour.Options
+			got := dirAA.Opts
 			if got != exp {
 				t.Errorf("expected '%s', got '%s'", exp, got)
 			}
-
-			// exp = fmt.Sprintf("%v", tC.dirBhOutput)
-			// got = fmt.Sprintf("%v", dirAA.Controls.Behaviour.Output)
-			// if got != exp {
-			// 	t.Errorf("expected '%s', got '%s'", exp, got)
-			// }
 
 			exp = fmt.Sprintf("%v", tC.dirBhFilter)
-			got = fmt.Sprintf("%v", dirAA.Controls.Behaviour.Filters)
+			got = fmt.Sprintf("%v", dirAA.Flts)
 			if got != exp {
 				t.Errorf("expected '%s', got '%s'", exp, got)
 			}
 
-			if fileAA.Controls.Behaviour == nil {
-				t.Fatal("expected behaviour")
-			}
-
-			if fileAA.Controls.Behaviour == nil {
-				t.Fatal("expected behaviour")
-			}
 			exp = tC.fileBhOptions
-			got = fileAA.Controls.Behaviour.Options
+			got = fileAA.Opts
 			if got != exp {
 				t.Errorf("expected '%s', got '%s'", exp, got)
 			}
@@ -773,7 +748,7 @@ func TestDirFileBehaviourParams(t *testing.T) {
 			// 	t.Errorf("expected '%s', got '%s'", exp, got)
 			// }
 			exp = fmt.Sprintf("%v", tC.fileBhFilter)
-			got = fmt.Sprintf("%v", fileAA.Controls.Behaviour.Filters)
+			got = fmt.Sprintf("%v", fileAA.Flts)
 			if got != exp {
 				t.Errorf("expected '%s', got '%s'", exp, got)
 			}

@@ -20,11 +20,9 @@ import (
 func TestExecProcess(t *testing.T) {
 	f := bytes.NewBufferString(`{
 		"name": "abc",
-		"controls": {
-			"mappings": [
-				{"start": "file:a.ext", "end": "exec:cp"}
-			]
-		},
+		"mappings": [
+			{"start": "file:a.ext", "end": "exec:cp"}
+		],
 		"files": {
 			"a.ext": {}
 		},
@@ -45,8 +43,8 @@ func TestExecProcess(t *testing.T) {
 	rm := refmap.Start()
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, refmap.ContextKey("source"), "testing")
-	ctx = context.WithValue(ctx, refmap.ContextKey("destination"), "testing/out")
+	ctx = context.WithValue(ctx, refmap.ContextKey("orig"), "testing")
+	ctx = context.WithValue(ctx, refmap.ContextKey("dest"), "testing/out")
 	ctx = context.WithValue(ctx, refmap.ContextKey("verbose"), 0)
 
 	err = e.Process(&entity.Branch{}, rm, ctx)
@@ -100,8 +98,8 @@ func TestExecPerform(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, refmap.ContextKey("source"), "testing")
-	ctx = context.WithValue(ctx, refmap.ContextKey("destination"), "testing/out")
+	ctx = context.WithValue(ctx, refmap.ContextKey("orig"), "testing")
+	ctx = context.WithValue(ctx, refmap.ContextKey("dest"), "testing/out")
 	ctx = context.WithValue(ctx, refmap.ContextKey("verbose"), 0)
 
 	cle := &entity.CLE{}

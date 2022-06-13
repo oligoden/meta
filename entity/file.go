@@ -21,7 +21,9 @@ type File struct {
 	Name     string             `json:"name"`
 	Source   string             `json:"source"`
 	Vars     map[string]string  `json:"vars"`
-	Controls Controls           `json:"controls"`
+	Opts     string             `json:"options"`
+	Flts     filters            `json:"filters"`
+	Mpns     []*Mapping         `json:"mappings"`
 	Template *template.Template `json:"-"`
 	Parent   ConfigReader       `json:"-"`
 	Branch   BranchBuilder      `json:"-"`
@@ -33,30 +35,27 @@ func (file File) Identifier() string {
 }
 
 func (e *File) Process(bb BranchBuilder, rm refmap.Mutator, ctx context.Context) error {
-	if e.Controls.Behaviour == nil {
-		e.Controls.Behaviour = &Behaviour{}
-	}
-	if e.Controls.Behaviour.Filters == nil {
-		e.Controls.Behaviour.Filters = filters{}
+	if e.Flts == nil {
+		e.Flts = filters{}
 	}
 
 	options := []string{}
 	for _, option := range strings.Split(e.Parent.Options(), ",") {
-		if !strings.Contains(e.Controls.Behaviour.Options, option) {
+		if !strings.Contains(e.Opts, option) {
 			options = append(options, option)
 		}
 	}
 
-	for _, option := range strings.Split(e.Controls.Behaviour.Options, ",") {
+	for _, option := range strings.Split(e.Opts, ",") {
 		if !strings.HasPrefix(option, "-") {
 			options = append(options, option)
 		}
 	}
-	e.Controls.Behaviour.Options = strings.Join(options, ",")
+	e.Opts = strings.Join(options, ",")
 
 	for i, filter := range e.Parent.Filters() {
-		if _, exist := e.Controls.Behaviour.Filters[i]; !exist {
-			e.Controls.Behaviour.Filters[i] = filter
+		if _, exist := e.Flts[i]; !exist {
+			e.Flts[i] = filter
 		}
 	}
 
@@ -129,14 +128,7 @@ func (file *File) Perform(rm refmap.Grapher, ctx context.Context) error {
 	verboseValue := ctx.Value(refmap.ContextKey("verbose")).(int)
 	srcFilename := filepath.Base(file.Source)
 
-	if file.Controls.Behaviour == nil {
-		if verboseValue >= 2 {
-			fmt.Println("not outputing", srcFilename)
-		}
-		return nil
-	}
-
-	if !strings.Contains(file.Controls.Behaviour.Options, "output") {
+	if !strings.Contains(file.Opts, "output") {
 		if verboseValue >= 2 {
 			fmt.Println("not outputing", srcFilename)
 		}
@@ -152,13 +144,13 @@ func (file *File) Perform(rm refmap.Grapher, ctx context.Context) error {
 		defaultSrcDir, defaultDstDir = file.Parent.Derived()
 	}
 
-	RootSrcDir := ctx.Value(refmap.ContextKey("source")).(string)
+	RootSrcDir := ctx.Value(refmap.ContextKey("orig")).(string)
 	srcDirectory := filepath.Join(RootSrcDir, defaultSrcDir)
 	srcFile := filepath.Join(srcDirectory, srcFilename)
 	// srcDirSpecific := filepath.Join(RootSrcDir, filepath.Dir(file.Source))
 	// srcFileSpecific := filepath.Join(srcDirSpecific, srcFilename)
 
-	RootDstDir := ctx.Value(refmap.ContextKey("destination")).(string)
+	RootDstDir := ctx.Value(refmap.ContextKey("dest")).(string)
 	dstFilename := strings.TrimSuffix(file.Name, ".tmpl")
 	dstDirectory := filepath.Join(RootDstDir, defaultDstDir)
 	dstFile := filepath.Join(dstDirectory, dstFilename)
@@ -186,7 +178,7 @@ func (file *File) Perform(rm refmap.Grapher, ctx context.Context) error {
 
 	contentBuf := &bytes.Buffer{}
 
-	if strings.Contains(file.Controls.Behaviour.Options, "copy") {
+	if strings.Contains(file.Opts, "copy") {
 		r, err := os.Open(srcFile)
 		if err != nil {
 			return err
@@ -263,7 +255,7 @@ func (file *File) Perform(rm refmap.Grapher, ctx context.Context) error {
 }
 
 func (e File) ContainsFilter(filter string) bool {
-	if _, has := e.Controls.Behaviour.Filters[filter]; has {
+	if _, has := e.Flts[filter]; has {
 		return true
 	}
 	return false

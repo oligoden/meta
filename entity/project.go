@@ -14,7 +14,6 @@ import (
 func NewProject() *Project {
 	e := &Project{}
 	e.This = e
-	e.Controls = NewControls()
 	e.Detect = state.New()
 	return e
 }
@@ -23,8 +22,8 @@ type Project struct {
 	Testing      bool       `json:"testing"`
 	Environment  string     `json:"environment"`
 	Repository   Repository `json:"repo"`
-	WorkLocation string     `json:"work-location"`
-	DestLocation string     `json:"dest-location"`
+	OrigLocation string     `json:"orig"`
+	DestLocation string     `json:"dest"`
 	oldName      string
 	Basic
 }

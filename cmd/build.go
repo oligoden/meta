@@ -72,14 +72,14 @@ See https://oligoden.com/meta for more information.`,
 			}
 		}
 
-		workLocation, err := cmd.Flags().GetString("work")
+		origLocation, err := cmd.Flags().GetString("work")
 		if err != nil {
 			fmt.Println("error getting work location flag,", err)
 			os.Exit(1)
 		}
 
-		if workLocation == "" {
-			workLocation = e.WorkLocation
+		if origLocation == "" {
+			origLocation = e.OrigLocation
 		}
 
 		destLocation, err := cmd.Flags().GetString("dest")
@@ -92,8 +92,8 @@ See https://oligoden.com/meta for more information.`,
 			destLocation = e.DestLocation
 		}
 
-		ctx := context.WithValue(context.Background(), refmap.ContextKey("source"), workLocation)
-		ctx = context.WithValue(ctx, refmap.ContextKey("destination"), destLocation)
+		ctx := context.WithValue(context.Background(), refmap.ContextKey("orig"), origLocation)
+		ctx = context.WithValue(ctx, refmap.ContextKey("dest"), destLocation)
 		ctx = context.WithValue(ctx, refmap.ContextKey("verbose"), verboseValue)
 
 		// the configuration is processed and graph build
@@ -141,8 +141,8 @@ func init() {
 	rootCmd.AddCommand(buildCmd)
 
 	buildCmd.Flags().String("metafile", "meta.json", "The meta file")
-	buildCmd.Flags().String("dest", "", "The destination directory")
-	buildCmd.Flags().String("work", "", "The meta work directory")
+	buildCmd.Flags().String("dest", "", "The base destination directory")
+	buildCmd.Flags().String("orig", "", "The base origin directory")
 	buildCmd.Flags().BoolP("force", "f", false, "Force rebuilding of existing files")
 	buildCmd.Flags().IntP("verbose", "v", 0, "Set verbosity to 1, 2 or 3")
 }

@@ -5,20 +5,6 @@ import (
 	"regexp"
 )
 
-type Controls struct {
-	Behaviour *Behaviour `json:"behaviour"`
-	Mappings  []*Mapping `json:"mappings"`
-}
-
-func NewControls() Controls {
-	return Controls{
-		Behaviour: &Behaviour{
-			Filters: map[string]map[string]string{},
-		},
-		Mappings: []*Mapping{},
-	}
-}
-
 type Mapping struct {
 	Start      Regexp `json:"start"`
 	End        Regexp `json:"end"`
@@ -61,29 +47,23 @@ const (
 	OutputBehaviour = "output"
 )
 
-type Behaviour struct {
-	Options    string  `json:"options"`
-	Filters    filters `json:"filters"`
-	Recurrence int     `json:"recurrence"`
-}
-
 type filters map[string]map[string]string
 
 func (e Basic) ControlMappings() []*Mapping {
-	return e.Controls.Mappings
+	return e.Mpns
 }
 
 func (b Basic) ContainsFilter(filter string) bool {
-	if _, has := b.Controls.Behaviour.Filters[filter]; has {
+	if _, has := b.Flts[filter]; has {
 		return true
 	}
 	return false
 }
 
 func (e Basic) Options() string {
-	return e.Controls.Behaviour.Options
+	return e.Opts
 }
 
 func (e Basic) Filters() filters {
-	return e.Controls.Behaviour.Filters
+	return e.Flts
 }

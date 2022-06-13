@@ -39,8 +39,8 @@ func TestBasicProcess(t *testing.T) {
 	branch := &entity.Branch{}
 	rm := refmap.Start()
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, refmap.ContextKey("source"), "testing")
-	ctx = context.WithValue(ctx, refmap.ContextKey("destination"), "testing/out")
+	ctx = context.WithValue(ctx, refmap.ContextKey("orig"), "testing")
+	ctx = context.WithValue(ctx, refmap.ContextKey("dest"), "testing/out")
 	ctx = context.WithValue(ctx, refmap.ContextKey("verbose"), 0)
 
 	if assert.NoError(e.Process(branch, rm, ctx)) {
@@ -71,7 +71,7 @@ func TestImportProcess(t *testing.T) {
 	defer os.RemoveAll("testing")
 
 	c := []byte(`{
-		"directories":{"a":{}},
+		"dirs":{"a":{}},
 		"files":{"a.ext":{}}
 	}`)
 	if err := ioutil.WriteFile("testing/meta.json", c, 0644); err != nil {
@@ -92,8 +92,8 @@ func TestImportProcess(t *testing.T) {
 	rm := refmap.Start()
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, refmap.ContextKey("source"), "testing")
-	ctx = context.WithValue(ctx, refmap.ContextKey("destination"), "testing/out")
+	ctx = context.WithValue(ctx, refmap.ContextKey("orig"), "testing")
+	ctx = context.WithValue(ctx, refmap.ContextKey("dest"), "testing/out")
 	ctx = context.WithValue(ctx, refmap.ContextKey("verbose"), 0)
 
 	err = e.Process(branch, rm, ctx)

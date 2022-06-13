@@ -76,28 +76,28 @@ See https://oligoden.com/meta for more information.`,
 			f.Close()
 		}
 
-		workLocation, err := cmd.Flags().GetString("work")
+		origLocation, err := cmd.Flags().GetString("work")
 		if err != nil {
 			fmt.Println("error getting meta folder name", err)
 			return
 		}
 
-		if workLocation == "" {
-			workLocation = e.WorkLocation
+		if origLocation == "" {
+			origLocation = e.OrigLocation
 		}
 
-		destinationLocation, err := cmd.Flags().GetString("dest")
+		destLocation, err := cmd.Flags().GetString("dest")
 		if err != nil {
 			fmt.Println("error getting destination location", err)
 			return
 		}
 
-		if destinationLocation == "" {
-			destinationLocation = e.DestLocation
+		if destLocation == "" {
+			destLocation = e.DestLocation
 		}
 
-		ctx := context.WithValue(context.Background(), refmap.ContextKey("source"), workLocation)
-		ctx = context.WithValue(ctx, refmap.ContextKey("destination"), destinationLocation)
+		ctx := context.WithValue(context.Background(), refmap.ContextKey("orig"), origLocation)
+		ctx = context.WithValue(ctx, refmap.ContextKey("dest"), destLocation)
 		ctx = context.WithValue(ctx, refmap.ContextKey("verbose"), verboseValue)
 
 		// the configuration is processed and graph build
@@ -137,7 +137,7 @@ See https://oligoden.com/meta for more information.`,
 		fmt.Println("building project...")
 		for _, ref := range rm.ChangedRefs() {
 			if strings.HasPrefix(ref.Identifier(), "file:") {
-				filename := filepath.Join(workLocation, ref.Identifier()[5:])
+				filename := filepath.Join(origLocation, ref.Identifier()[5:])
 				fileWatcher.Add(filename)
 			}
 
@@ -186,7 +186,7 @@ See https://oligoden.com/meta for more information.`,
 					fmt.Println("fs event", event.Op, event.Name)
 					if event.Op&fsnotify.Write == fsnotify.Write ||
 						event.Op&fsnotify.Chmod == fsnotify.Chmod {
-						relPath, err := filepath.Rel(workLocation, event.Name)
+						relPath, err := filepath.Rel(origLocation, event.Name)
 						if err != nil {
 							fmt.Println("error finding relative path", err)
 							continue
@@ -280,8 +280,8 @@ func init() {
 	rootCmd.AddCommand(upCmd)
 
 	upCmd.Flags().String("metafile", "meta.json", "The meta file")
-	upCmd.Flags().String("dest", "", "The destination directory")
-	upCmd.Flags().String("work", "", "The meta work directory")
+	upCmd.Flags().String("dest", "", "The base destination directory")
+	upCmd.Flags().String("orig", "", "The base origin directory")
 	upCmd.Flags().BoolP("force", "f", false, "Force rebuilding of existing files")
 	upCmd.Flags().IntP("verbose", "v", 0, "Set verbosity to 1, 2 or 3")
 }

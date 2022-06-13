@@ -31,11 +31,13 @@ type Basic struct {
 	SrcDerived      string                `json:"-"`
 	DstDerived      string                `json:"-"`
 	Vars            map[string]string     `json:"vars"`
-	Directories     map[string]*Directory `json:"directories"`
+	Directories     map[string]*Directory `json:"dirs"`
 	Files           map[string]*File      `json:"files"`
 	Execs           map[string]*CLE       `json:"execs"`
 	Import          bool                  `json:"import"`
-	Controls        Controls              `json:"controls"`
+	Opts            string                `json:"options"`
+	Flts            filters               `json:"filters"`
+	Mpns            []*Mapping            `json:"mappings"`
 	This            ConfigReader          `json:"-"`
 	Parent          ConfigReader          `json:"-"`
 	posibleMappings map[string]Mapping
@@ -90,7 +92,7 @@ func (e *Basic) Process(bb BranchBuilder, rm refmap.Mutator, ctx context.Context
 	}
 
 	if e.Import {
-		rootSrcDir := ctx.Value(refmap.ContextKey("source")).(string)
+		rootSrcDir := ctx.Value(refmap.ContextKey("orig")).(string)
 		metafile := filepath.Join(rootSrcDir, e.SrcDerived, "/meta.json")
 
 		f, err := os.Open(metafile)
@@ -132,26 +134,31 @@ func (e *Basic) Process(bb BranchBuilder, rm refmap.Mutator, ctx context.Context
 		e.posibleMappings = map[string]Mapping{}
 	}
 
-	if e.Controls.Behaviour == nil {
-		e.Controls.Behaviour = &Behaviour{}
-	}
-	if e.Controls.Behaviour.Filters == nil {
-		e.Controls.Behaviour.Filters = filters{}
+	// if e.Controls.Behaviour == nil {
+	// 	e.Controls.Behaviour = &Behaviour{}
+	// }
+
+	// if e.Controls.Behaviour.Filters == nil {
+	// 	e.Controls.Behaviour.Filters = filters{}
+	// }
+
+	if e.Flts == nil {
+		e.Flts = filters{}
 	}
 
-	mappings := e.Controls.Mappings
+	mappings := e.Mpns
 	options := []string{}
 
 	if e.Parent != nil {
 		if e.Parent.Options() != "" {
 			for _, option := range strings.Split(e.Parent.Options(), ",") {
-				if !strings.Contains(e.Controls.Behaviour.Options, option) {
+				if !strings.Contains(e.Opts, option) {
 					options = append(options, option)
 				}
 			}
 		}
 
-		e.Controls.Mappings = append(e.Controls.Mappings, e.Parent.ControlMappings()...)
+		e.Mpns = append(e.Mpns, e.Parent.ControlMappings()...)
 
 		// for i, filter := range e.Parent.Filters() {
 		// 	if _, exist := e.Controls.Behaviour.Filters[i]; !exist {
@@ -160,14 +167,14 @@ func (e *Basic) Process(bb BranchBuilder, rm refmap.Mutator, ctx context.Context
 		// }
 	}
 
-	if e.Controls.Behaviour.Options != "" {
-		for _, option := range strings.Split(e.Controls.Behaviour.Options, ",") {
+	if e.Opts != "" {
+		for _, option := range strings.Split(e.Opts, ",") {
 			if !strings.HasPrefix(option, "-") {
 				options = append(options, option)
 			}
 		}
 	}
-	e.Controls.Behaviour.Options = strings.Join(options, ",")
+	e.Opts = strings.Join(options, ",")
 
 	for name := range e.Files {
 		e.Files[name].Name = name
