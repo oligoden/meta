@@ -42,7 +42,7 @@ See https://oligoden.com/meta for more information.`,
 
 		_, err = os.Stat(metaFileName)
 		if errors.Is(err, os.ErrNotExist) {
-			fmt.Printf(`project config "%s" not found\n`, metaFileName)
+			fmt.Printf("project config \"%s\" not found\n", metaFileName)
 			os.Exit(0)
 		}
 
@@ -76,9 +76,9 @@ See https://oligoden.com/meta for more information.`,
 			f.Close()
 		}
 
-		origLocation, err := cmd.Flags().GetString("work")
+		origLocation, err := cmd.Flags().GetString("orig")
 		if err != nil {
-			fmt.Println("error getting meta folder name", err)
+			fmt.Println("error getting origin flag", err)
 			return
 		}
 
@@ -88,7 +88,7 @@ See https://oligoden.com/meta for more information.`,
 
 		destLocation, err := cmd.Flags().GetString("dest")
 		if err != nil {
-			fmt.Println("error getting destination location", err)
+			fmt.Println("error getting destination flag", err)
 			return
 		}
 
